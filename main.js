@@ -960,7 +960,7 @@ audioLoader.load('assets/Sounds/spaceSound1.mp3', function(buffer) {
   backgroundMusic.setVolume(0.4);
   backgroundMusic.play();
 
-  fadeAudio(musicGainNode.gain, 0, 1, 2);
+  // fadeAudio(musicGainNode.gain, 0, 1, 2);
 });
 
 
