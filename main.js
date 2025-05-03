@@ -748,12 +748,12 @@ function gameOver(success) {
   
   
   // Add message
-  const message = document.createElement('p');
-  message.textContent = success 
-    ? 'You successfully reached the destination!' 
-    : 'Your shuttle was destroyed!';
-  message.style.margin = '15px 0';
-  popup.appendChild(message);
+  // const message = document.createElement('p');
+  // message.textContent = success 
+  //   ? 'You successfully reached the destination!' 
+  //   : 'Your shuttle was destroyed!';
+  // message.style.margin = '15px 0';
+  // popup.appendChild(message);
   
   // Add replay button
   const replayButton = document.createElement('button');
