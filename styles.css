@@ -1,0 +1,136 @@
+Reset and base styles
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Exo 2', sans-serif;
+  /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
+  background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
+  color: #ffffff;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#game-container {
+  position: relative;
+}
+
+/* HUD (top-left) */
+#hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background-color: rgba(0, 20, 40, 0.6);
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px #00f0ff;
+  border-left: 4px solid #4fc3f7;
+  border-right: 4px solid #4fc3f7;
+  transition: all 0.3s ease;
+}
+
+#hud:hover {
+  background-color: rgba(0, 30, 60, 0.7);
+  box-shadow: 0 0 25px rgba(0, 150, 255, 0.5);
+}
+
+#hud h1 {
+  font-size: 30px;
+  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
+  margin-bottom: 10px;
+  margin-top: 0px;
+  color: #4fc3f7;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+}
+
+.controls-info {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.control-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.action {
+  color: #cccccc;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.key {
+  background-color: rgba(255, 255, 255, 0.2);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    min-width: 60px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Score display (top-right) */
+#score-display {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(0, 20, 40, 0.6);
+  padding: 10px 14px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  
+  box-shadow: 0 0 10px #00f0ff;
+  border-left: 4px solid #4fc3f7;
+  border-right: 4px solid #4fc3f7;
+  transition: all 0.3s ease;
+}
+
+.score-text {
+  font-size: 30px;
+  font-weight: 700;
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 2px;
+  color: #4fc3f7;
+  text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+}
+
+.score-value {
+  font-size: 50px;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* Progress bar (top-center) */
+#progress-container {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50%;
+  height: 30px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid #00f0ff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 8px #00f0ff;
+}
+
+#progress-bar {
+  height: 100%;
+  width: 0%; /* Dynamically update this with JS */
+  background: linear-gradient(to right, #00f0ff, #00d0aa);
+  transition: width 0.3s ease-out;
+}
