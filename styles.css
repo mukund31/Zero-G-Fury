@@ -1,4 +1,3 @@
-Reset and base styles
 * {
   margin: 0;
   padding: 0;
@@ -48,6 +47,9 @@ body {
   text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
 }
 
+
+
+
 .controls-info {
   margin-top: 10px;
   display: flex;
@@ -78,6 +80,7 @@ body {
     text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
+
 
 /* Score display (top-right) */
 #score-display {
@@ -133,4 +136,38 @@ body {
   width: 0%; /* Dynamically update this with JS */
   background: linear-gradient(to right, #00f0ff, #00d0aa);
   transition: width 0.3s ease-out;
+}
+
+@media screen and (max-width: 1200px) {
+  #progress-container {
+    width: 90%;
+  }
+
+  .controls-container {
+    display: none;
+  }
+  
+  #score-display {
+    flex-direction: row;
+    padding-left: 10;
+    padding-right: 10;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 40px;
+  }
+
+  .score-text {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+    color: #4fc3f7;
+    text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+  }
+  
+  .score-value {
+    font-size: 15px;
+    color: #ffd700;
+    font-weight: bold;
+  }
 }
