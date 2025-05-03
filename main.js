@@ -227,7 +227,7 @@ const shuttleSpeed = 2;
 
 function loadShuttle() {
   const loader = new THREE.GLTFLoader();
-  loader.load('assets/space_shuttle_buran.glb', (gltf) => {
+  loader.load('assets/Models/space_shuttle_buran.glb', (gltf) => {
     shuttle = gltf.scene;
     shuttle.scale.set(1, 1, 1);
     shuttle.position.set(0, 0, 0);
@@ -272,7 +272,7 @@ const asteroidModels = [];
 function loadAsteroids() {
   const loader = new THREE.GLTFLoader();
   const asteroidPaths = [
-    'assets/asteroid4.glb'
+    'assets/Models/asteroid4.glb'
   ];
   let loaded = 0;
   asteroidPaths.forEach((path, index) => {
@@ -401,30 +401,8 @@ function updateAsteroids(deltaTime) {
 
 
 // === GOAL ===
-// const goal = new THREE.Mesh(
-//   new THREE.SphereGeometry(5, 16, 16),
-//   new THREE.MeshStandardMaterial({ color: 0x00ff00 })
-// );
-// goal.position.set(0, 0, -100);
-// scene.add(goal);
-
 
 let goal;
-// function loadGoal() {
-//   const loader = new THREE.GLTFLoader();
-//   loader.load('assets/earth1.glb', (gltf) => {
-//     goal = gltf.scene;
-//     goal.scale.set(1, 1, 1);
-//     goal.position.set(0, 0, -1000);
-//     scene.add(goal);
-
-//     // document.dispatchEvent(new MouseEvent('mousemove', {
-//     //   clientX: window.innerWidth / 2,
-//     //   clientY: window.innerHeight / 2
-//     // }));
-    
-//   });
-// }
 function loadGoal() {
   // Remove any existing goal
   if (goal) scene.remove(goal);
@@ -746,14 +724,6 @@ function gameOver(success) {
   scoreElement.style.margin = '20px 0';
   popup.appendChild(scoreElement);
   
-  
-  // Add message
-  // const message = document.createElement('p');
-  // message.textContent = success 
-  //   ? 'You successfully reached the destination!' 
-  //   : 'Your shuttle was destroyed!';
-  // message.style.margin = '15px 0';
-  // popup.appendChild(message);
   
   // Add replay button
   const replayButton = document.createElement('button');
