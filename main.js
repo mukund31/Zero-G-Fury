@@ -90,8 +90,8 @@ function updateAiming() {
   // Update aim line
   const points = [start, aimPoint.clone()];
   aimLine.geometry.dispose(); // Clean up old geometry
-aimLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
-aimLine.computeLineDistances();
+  aimLine.geometry = new THREE.BufferGeometry().setFromPoints(points);
+  aimLine.computeLineDistances();
   aimLine.geometry.attributes.position.needsUpdate = true;
   // aimLine.geometry.needsUpdate = true;
 
@@ -158,6 +158,9 @@ function createMissile() {
 function shootMissile() {
   if (missileCooldown || !shuttle) return;
   missileCooldown = true;
+
+  if (shootSound.isPlaying) shootSound.stop();
+  shootSound.play();
 
   const missile = createMissile();
   missile.position.copy(shuttle.position);
@@ -516,6 +519,9 @@ function detectCollisions() {
         // Mark objects for removal
         missilesToRemove.push(m);
         asteroidsToRemove.push(a);
+
+        if (explosionSound.isPlaying) explosionSound.stop();
+        explosionSound.play();
         
         // Increment score
         score++;
@@ -936,3 +942,36 @@ function updateDistanceProgress(distance) {
 }
 
 
+// === AUDIO SETUP ===
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
+const audioLoader = new THREE.AudioLoader();
+
+// Global sounds
+const backgroundMusic = new THREE.Audio(listener);
+const shootSound = new THREE.Audio(listener);
+const explosionSound = new THREE.Audio(listener);
+
+// Load background music
+audioLoader.load('assets/Sounds/spaceSound1.mp3', function(buffer) {
+  backgroundMusic.setBuffer(buffer);
+  backgroundMusic.setLoop(true);
+  backgroundMusic.setVolume(0.4);
+  backgroundMusic.play();
+
+  fadeAudio(musicGainNode.gain, 0, 1, 2);
+});
+
+
+// Load shooting sound
+audioLoader.load('assets/Sounds/shootMissile.mp3', function(buffer) {
+  shootSound.setBuffer(buffer);
+  shootSound.setVolume(1);
+});
+
+// Load explosion sound
+audioLoader.load('assets/Sounds/asteroidExplosion.mp3', function(buffer) {
+  explosionSound.setBuffer(buffer);
+  explosionSound.setVolume(1);
+});
