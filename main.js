@@ -690,6 +690,11 @@ function showScorePopup() {
 
 
 function gameOver(success) {
+  gameActive = false;
+  gamePaused = false;
+
+  hidePauseMenu();
+
   // First, check if there's already a popup and remove it
   const existingPopup = document.querySelector('.game-over-popup');
   if (existingPopup) {
@@ -801,11 +806,60 @@ function gameOver(success) {
   animationRunning = false;
 }
 
+// Add this to your GAME STATE section
+let gamePaused = false;
+let gameActive = true;
+
+// Add these functions for pause functionality
+function togglePause() {
+  if (!gameActive) return; // Don't pause if game is over
+  
+  gamePaused = !gamePaused;
+  
+  if (gamePaused) {
+    showPauseMenu();
+  } else {
+    hidePauseMenu();
+  }
+}
+
+function hidePauseMenu() {
+  const pauseMenu = document.getElementById('pause-menu');
+  if (pauseMenu) {
+    document.body.removeChild(pauseMenu);
+  }
+  gamePaused = false;
+}
+
+function showPauseMenu() {
+  // Create pause menu
+  const pauseMenu = document.createElement('div');
+  pauseMenu.id = 'pause-menu';
+  pauseMenu.className = 'pause-menu fade-in';
+  
+  pauseMenu.innerHTML = `
+    <h2>GAME PAUSED</h2>
+    <button id="resume-button">RESUME</button>
+    <button id="restart-button-pause">RESTART</button>
+  `;
+  
+  document.body.appendChild(pauseMenu);
+  
+  // Add event listeners
+  document.getElementById('resume-button').addEventListener('click', togglePause);
+  document.getElementById('restart-button-pause').addEventListener('click', () => {
+    hidePauseMenu();
+    resetGame();
+  });
+}
+
 
 
 function resetGame() {
   // Reset score
   score = 0;
+  gameActive = true;
+  gamePaused = false;
   updateScoreDisplay();
   
   // Reset shuttle position
@@ -834,6 +888,8 @@ function resetGame() {
   
   // Reset mouse moved flag
   mouseMoved = true;
+
+  hidePauseMenu();
   
   // Force an initial aiming update
   setTimeout(() => {
@@ -873,6 +929,7 @@ scene.add(starField);
 // === EVENT LISTENERS ===
 document.addEventListener('keydown', (e) => {
   if (e.key === ' ') shootMissile();
+  if (e.key === 'Escape' || e.key === 'p') togglePause();
 });
 
 document.addEventListener('click', (e) => {
@@ -895,12 +952,15 @@ function animate() {
   if (animationRunning) {
     requestAnimationFrame(animate);
   }
-  updateShuttle();
-  updateAsteroids(deltaTime);
-  updateMissiles(deltaTime);
 
-  updateAiming();
-  detectCollisions();
+  if(!gamePaused) {
+    updateShuttle();
+    updateAsteroids(deltaTime);
+    updateMissiles(deltaTime);
+  
+    updateAiming();
+    detectCollisions();
+  }
   renderer.render(scene, camera);
   if(shuttle)
     updateDistanceProgress(shuttle.position.z*-1);
@@ -974,4 +1034,18 @@ audioLoader.load('assets/Sounds/shootMissile.mp3', function(buffer) {
 audioLoader.load('assets/Sounds/asteroidExplosion.mp3', function(buffer) {
   explosionSound.setBuffer(buffer);
   explosionSound.setVolume(1);
+});
+
+
+// Mobile pause button functionality
+document.addEventListener('DOMContentLoaded', () => {
+  const pauseButton = document.querySelector('.pause-btn');
+  if (pauseButton) {
+      pauseButton.addEventListener('click', () => {
+          togglePause();
+          
+          // Toggle the paused class for the button appearance
+          // pauseButton.classList.toggle('paused', gamePaused);
+      });
+  }
 });

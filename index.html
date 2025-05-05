@@ -34,7 +34,15 @@
                     <span class="action">/</span>
                     <span class="key">CLICK</span>
                 </div>
+                <!-- Add pause control instructions -->
+                <div class="control-item">
+                    <span class="action">Pause :</span>
+                    <span class="key">ESC</span>
+                    <span class="action">/</span>
+                    <span class="key">P</span>
+                </div>
             </div>
+
         </div>
         
         <div id="progress-container">
@@ -47,6 +55,17 @@
             <span class="score-text">Score</span>
             <span class="score-value">0</span>
         </div>
+
+        <!-- Pause button for mobile -->
+        <div id="pause-button">
+            <button class="pause-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12px" height="12px">
+                    <rect x="6" y="4" width="4" height="14" fill="currentColor"/>
+                    <rect x="14" y="4" width="4" height="14" fill="currentColor"/>
+                </svg>
+            </button>
+        </div>
+
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
