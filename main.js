@@ -166,7 +166,7 @@ function shootMissile() {
   missile.position.copy(shuttle.position);
   
   // Calculate direction toward aim point
-  const direction = aimPoint.clone().sub(shuttle.position).normalize();
+  const direction = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, 0)).normalize();
   
   // Set missile orientation
   const targetQuaternion = new THREE.Quaternion();
@@ -1045,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
           togglePause();
           
           // Toggle the paused class for the button appearance
-          // pauseButton.classList.toggle('paused', gamePaused);
+          pauseButton.classList.toggle('paused', gamePaused);
       });
   }
 });
