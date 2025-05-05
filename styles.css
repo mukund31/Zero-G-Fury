@@ -117,9 +117,11 @@ body {
 }
 
 /* Progress bar (top-center) */
-#progress-container {
+
+/* #progress-container {
   position: absolute;
-  top: 50px;
+  // top: 50px; 
+  margin-top: 40%;
   left: 50%;
   transform: translateX(-50%);
   width: 50%;
@@ -129,6 +131,22 @@ body {
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 0 8px #00f0ff;
+} */
+
+
+#progress-container {
+  position: absolute;
+  bottom: -700px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50%;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid #00f0ff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 8px #00f0ff;
+  z-index: 10;
 }
 
 
@@ -266,19 +284,44 @@ body {
 @media screen and ((min-width: 768px) and (max-width: 1200px)) {
   #progress-container {
     width: 30%;
+    height: 10px;
   }
 
+  .controls-info {
+    display: none;
+  }
+
+  
   
 }
 
 
 @media screen and (max-width: 768px) {
+  #hud h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  
+  #hud {
+    /* padding: 5px 10px 0px 10px; */
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 22px;
+    /* margin-top: 40px; */
+    /* margin-right: 25px; */
+  }
+
   #progress-container {
     width: 90%;
+    height: 10px;
+    margin-top: 160%;
   }
 
   .controls-container {
-    display: none;
+    /* display: none; */
   }
 
   .control-item {
