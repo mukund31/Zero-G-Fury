@@ -58,7 +58,7 @@ let highlightedAsteroid = null;
 
 // === UFO ENEMY SYSTEM ===
 let ufos = [];
-const ufoSpawnInterval = 5000; // Spawn a UFO every 10 seconds
+const ufoSpawnInterval = 7000; // Spawn a UFO every 7 seconds
 let lastUfoSpawnTime = 0;
 let ufoModel = null;
 // const ufoProjectiles = [];
@@ -793,10 +793,128 @@ function showScorePopup() {
 }
 
 
+// function gameOver(success) {
+//   gameActive = false;
+//   gamePaused = false;
+
+//   hidePauseMenu();
+
+//   // First, check if there's already a popup and remove it
+//   const existingPopup = document.querySelector('.game-over-popup');
+//   if (existingPopup) {
+//     document.body.removeChild(existingPopup);
+//   }
+
+//   // Create popup container
+//   const popup = document.createElement('div');
+//   popup.className = 'game-over-popup'; // Add a class for easy selection
+//   popup.style.position = 'absolute';
+//   popup.style.top = '50%';
+//   popup.style.left = '50%';
+//   popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
+//   popup.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+//   popup.style.color = 'white';
+//   popup.style.padding = '30px';
+//   popup.style.borderRadius = '10px';
+//   popup.style.boxShadow = '0 0 20px rgba(0, 0, 255, 0.5)';
+//   popup.style.textAlign = 'center';
+//   popup.style.zIndex = '1000';
+//   popup.style.minWidth = '300px';
+//   popup.style.fontFamily = 'Arial, sans-serif';
+//   popup.style.opacity = '0';
+//   popup.style.transition = 'all 0.5s ease-out';
+  
+//   // Add title
+//   const title = document.createElement('h2');
+//   title.textContent = success ? '🎉 Mission Complete!' : '💥 Mission Failed!';
+//   title.style.color = success ? '#4CAF50' : '#F44336';
+//   title.style.marginTop = '0';
+//   title.className = 'pulse';
+//   popup.appendChild(title);
+  
+//   // Add score
+//   const scoreElement = document.createElement('h3');
+//   scoreElement.textContent = `Final Score: ${score}`;
+//   scoreElement.style.fontSize = '24px';
+//   scoreElement.style.margin = '20px 0';
+//   popup.appendChild(scoreElement);
+  
+  
+//   // Add replay button
+//   const replayButton = document.createElement('button');
+//   replayButton.textContent = 'Play Again';
+//   replayButton.style.backgroundColor = '#4CAF50';
+//   replayButton.style.color = 'white';
+//   replayButton.style.border = 'none';
+//   replayButton.style.padding = '10px 20px';
+//   replayButton.style.fontSize = '16px';
+//   replayButton.style.borderRadius = '5px';
+//   replayButton.style.cursor = 'pointer';
+//   replayButton.style.marginTop = '20px';
+//   replayButton.style.transition = 'background-color 0.3s';
+  
+//   replayButton.addEventListener('mouseover', () => {
+//     replayButton.style.backgroundColor = '#45a049';
+//   });
+  
+//   replayButton.addEventListener('mouseout', () => {
+//     replayButton.style.backgroundColor = '#4CAF50';
+//   });
+  
+//   // Use a flag to prevent multiple clicks
+//   let buttonClicked = false;
+  
+//   replayButton.addEventListener('click', () => {
+//     // Prevent multiple clicks
+//     if (buttonClicked) return;
+//     buttonClicked = true;
+    
+//     // Disable the button visually
+//     replayButton.style.backgroundColor = '#888';
+//     replayButton.style.cursor = 'default';
+//     replayButton.textContent = 'Restarting...';
+    
+//     // Fade out animation
+//     popup.style.opacity = '0';
+//     popup.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    
+//     // Remove popup and reset game after animation completes
+//     setTimeout(() => {
+//       // Check if popup is still in the DOM before trying to remove it
+//       if (document.body.contains(popup)) {
+//         document.body.removeChild(popup);
+//       }
+      
+//       resetGame();
+      
+//       // Resume game loop
+//       if (!animationRunning) {
+//         animationRunning = true;
+//         requestAnimationFrame(animate);
+//       }
+//     }, 500); // Match the transition duration
+//   });
+  
+//   popup.appendChild(replayButton);
+  
+//   // Add to document
+//   document.body.appendChild(popup);
+  
+//   // Trigger entrance animation
+//   setTimeout(() => {
+//     popup.style.opacity = '1';
+//     popup.style.transform = 'translate(-50%, -50%) scale(1)';
+//   }, 10);
+  
+//   // Pause the game loop
+//   animationRunning = false;
+// }
+
+
+
 function gameOver(success) {
   gameActive = false;
   gamePaused = false;
-
   hidePauseMenu();
 
   // First, check if there's already a popup and remove it
@@ -807,76 +925,192 @@ function gameOver(success) {
 
   // Create popup container
   const popup = document.createElement('div');
-  popup.className = 'game-over-popup'; // Add a class for easy selection
+  popup.className = 'game-over-popup';
   popup.style.position = 'absolute';
   popup.style.top = '50%';
   popup.style.left = '50%';
   popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
-  popup.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-  popup.style.color = 'white';
-  popup.style.padding = '30px';
-  popup.style.borderRadius = '10px';
-  popup.style.boxShadow = '0 0 20px rgba(0, 0, 255, 0.5)';
+  popup.style.backgroundColor = 'rgba(10, 15, 30, 0.85)'; // Darker, more space-like background
+  popup.style.color = '#e0e7ff'; // Light blue-white text
+  popup.style.padding = '40px';
+  popup.style.borderRadius = '15px';
+  popup.style.boxShadow = '0 0 30px rgba(0, 150, 255, 0.6), 0 0 60px rgba(0, 50, 255, 0.3)'; // Dual glow effect
   popup.style.textAlign = 'center';
   popup.style.zIndex = '1000';
-  popup.style.minWidth = '300px';
-  popup.style.fontFamily = 'Arial, sans-serif';
+  popup.style.minWidth = '350px';
+  popup.style.maxWidth = '450px';
+  popup.style.fontFamily = '"Orbitron", sans-serif'; // Space-themed fonts
   popup.style.opacity = '0';
-  popup.style.transition = 'all 0.5s ease-out';
-  
-  // Add title
+  popup.style.transition = 'all 0.6s cubic-bezier(0.19, 1, 0.22, 1)'; // Smoother easing
+  popup.style.backdropFilter = 'blur(10px)'; // Blur effect behind popup
+  popup.style.border = '1px solid rgba(100, 150, 255, 0.3)'; // Subtle border
+
+  // Add title with animation
   const title = document.createElement('h2');
-  title.textContent = success ? '🎉 Mission Complete!' : '💥 Mission Failed!';
-  title.style.color = success ? '#4CAF50' : '#F44336';
+  title.textContent = success ? 'MISSION COMPLETE' : 'MISSION FAILED';
+  title.style.color = success ? '#4eff75' : '#ff5b4a'; // Brighter colors
   title.style.marginTop = '0';
-  title.className = 'pulse';
+  title.style.fontSize = '28px';
+  title.style.letterSpacing = '2px';
+  title.style.textTransform = 'uppercase';
+  title.style.textShadow = success ? 
+    '0 0 10px rgba(78, 255, 117, 0.7)' : 
+    '0 0 10px rgba(255, 91, 74, 0.7)'; // Text glow
+  title.style.animation = 'pulse 1.5s infinite';
   popup.appendChild(title);
-  
-  // Add score
+
+  // Add CSS animation for pulse effect
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .stat-item {
+      animation: fadeIn 0.5s forwards;
+      opacity: 0;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Add divider
+  const divider = document.createElement('div');
+  divider.style.height = '2px';
+  divider.style.background = 'linear-gradient(to right, transparent, rgba(100, 150, 255, 0.7), transparent)';
+  divider.style.margin = '20px 0';
+  popup.appendChild(divider);
+
+  // Add score with animation
   const scoreElement = document.createElement('h3');
-  scoreElement.textContent = `Final Score: ${score}`;
-  scoreElement.style.fontSize = '24px';
-  scoreElement.style.margin = '20px 0';
+  scoreElement.textContent = `FINAL SCORE: ${score}`;
+  scoreElement.style.fontSize = '26px';
+  scoreElement.style.margin = '25px 0';
+  scoreElement.style.fontWeight = 'bold';
+  scoreElement.style.color = '#ffffff';
+  scoreElement.style.textShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
+  scoreElement.className = 'stat-item';
+  scoreElement.style.animationDelay = '0.2s';
   popup.appendChild(scoreElement);
-  
-  
-  // Add replay button
+
+  // Add stats container
+  // const statsContainer = document.createElement('div');
+  // statsContainer.style.display = 'flex';
+  // statsContainer.style.justifyContent = 'space-around';
+  // statsContainer.style.margin = '30px 0';
+  // popup.appendChild(statsContainer);
+
+  // Add some game stats with icons
+  // const stats = [
+  //   { icon: '🚀', label: 'Distance', value: `${Math.abs(shuttle.position.z).toFixed(0)}` },
+  //   { icon: '💥', label: 'Asteroids', value: `${score}` }
+  // ];
+
+  // stats.forEach((stat, index) => {
+  //   const statItem = document.createElement('div');
+  //   statItem.className = 'stat-item';
+  //   statItem.style.animationDelay = `${0.4 + index * 0.2}s`;
+    
+  //   const icon = document.createElement('div');
+  //   icon.textContent = stat.icon;
+  //   icon.style.fontSize = '24px';
+  //   icon.style.marginBottom = '5px';
+    
+  //   const label = document.createElement('div');
+  //   label.textContent = stat.label;
+  //   label.style.fontSize = '14px';
+  //   label.style.opacity = '0.8';
+  //   label.style.marginBottom = '3px';
+    
+  //   const value = document.createElement('div');
+  //   value.textContent = stat.value;
+  //   value.style.fontSize = '20px';
+  //   value.style.fontWeight = 'bold';
+    
+  //   statItem.appendChild(icon);
+  //   statItem.appendChild(label);
+  //   statItem.appendChild(value);
+  //   statsContainer.appendChild(statItem);
+  // });
+
+  // Add another divider
+  const divider2 = document.createElement('div');
+  divider2.style.height = '2px';
+  divider2.style.background = 'linear-gradient(to right, transparent, rgba(100, 150, 255, 0.7), transparent)';
+  divider2.style.margin = '20px 0';
+  popup.appendChild(divider2);
+
+  // Add replay button with improved styling
   const replayButton = document.createElement('button');
-  replayButton.textContent = 'Play Again';
-  replayButton.style.backgroundColor = '#4CAF50';
+  replayButton.textContent = 'PLAY AGAIN';
+  replayButton.style.backgroundColor = success ? '#4CAF50' : '#2196F3';
   replayButton.style.color = 'white';
   replayButton.style.border = 'none';
-  replayButton.style.padding = '10px 20px';
+  replayButton.style.padding = '12px 30px';
   replayButton.style.fontSize = '16px';
-  replayButton.style.borderRadius = '5px';
+  replayButton.style.borderRadius = '30px';
   replayButton.style.cursor = 'pointer';
   replayButton.style.marginTop = '20px';
-  replayButton.style.transition = 'background-color 0.3s';
-  
+  replayButton.style.transition = 'all 0.3s ease';
+  replayButton.style.fontWeight = 'bold';
+  replayButton.style.letterSpacing = '1px';
+  replayButton.style.boxShadow = success ? 
+    '0 0 15px rgba(76, 175, 80, 0.5)' : 
+    '0 0 15px rgba(33, 150, 243, 0.5)';
+  replayButton.style.position = 'relative';
+  replayButton.style.overflow = 'hidden';
+  replayButton.className = 'stat-item';
+  replayButton.style.animationDelay = '0.8s';
+
+  // Add hover effects
   replayButton.addEventListener('mouseover', () => {
-    replayButton.style.backgroundColor = '#45a049';
+    replayButton.style.backgroundColor = success ? '#45a049' : '#0b7dda';
+    replayButton.style.transform = 'translateY(-2px)';
+    replayButton.style.boxShadow = success ? 
+      '0 0 20px rgba(76, 175, 80, 0.7)' : 
+      '0 0 20px rgba(33, 150, 243, 0.7)';
   });
-  
+
   replayButton.addEventListener('mouseout', () => {
-    replayButton.style.backgroundColor = '#4CAF50';
+    replayButton.style.backgroundColor = success ? '#4CAF50' : '#2196F3';
+    replayButton.style.transform = 'translateY(0)';
+    replayButton.style.boxShadow = success ? 
+      '0 0 15px rgba(76, 175, 80, 0.5)' : 
+      '0 0 15px rgba(33, 150, 243, 0.5)';
   });
-  
+
   // Use a flag to prevent multiple clicks
   let buttonClicked = false;
-  
+
   replayButton.addEventListener('click', () => {
     // Prevent multiple clicks
     if (buttonClicked) return;
     buttonClicked = true;
     
+    // Add click animation
+    replayButton.style.transform = 'scale(0.95)';
+    
     // Disable the button visually
-    replayButton.style.backgroundColor = '#888';
-    replayButton.style.cursor = 'default';
-    replayButton.textContent = 'Restarting...';
+    setTimeout(() => {
+      replayButton.style.backgroundColor = '#888';
+      replayButton.style.cursor = 'default';
+      replayButton.textContent = 'RESTARTING...';
+      replayButton.style.boxShadow = '0 0 10px rgba(136, 136, 136, 0.5)';
+    }, 150);
     
     // Fade out animation
-    popup.style.opacity = '0';
-    popup.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    setTimeout(() => {
+      popup.style.opacity = '0';
+      popup.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    }, 300);
     
     // Remove popup and reset game after animation completes
     setTimeout(() => {
@@ -892,23 +1126,24 @@ function gameOver(success) {
         animationRunning = true;
         requestAnimationFrame(animate);
       }
-    }, 500); // Match the transition duration
+    }, 800); // Match the transition duration
   });
-  
+
   popup.appendChild(replayButton);
-  
+
   // Add to document
   document.body.appendChild(popup);
-  
+
   // Trigger entrance animation
   setTimeout(() => {
     popup.style.opacity = '1';
     popup.style.transform = 'translate(-50%, -50%) scale(1)';
   }, 10);
-  
+
   // Pause the game loop
   animationRunning = false;
 }
+
 
 // Add this to your GAME STATE section
 let gamePaused = false;

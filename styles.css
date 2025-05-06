@@ -422,7 +422,8 @@ body {
   bottom: 20px;
   left: 20px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  gap: 10px;
   align-items: flex-start;
   background-color: rgba(0, 20, 40, 0.7);
   padding: 10px 15px;
@@ -437,7 +438,7 @@ body {
   color: #4fc3f7;
   font-size: 14px;
   font-weight: 700;
-  margin-bottom: 5px;
+  /* margin-bottom: 5px; */
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -449,7 +450,8 @@ body {
   border-radius: 6px;
   overflow: hidden;
   position: relative;
-  margin-bottom: 5px;
+  margin-top: 3px;
+  /* margin-bottom: 5px; */
 }
 
 .health-fill {
@@ -464,6 +466,7 @@ body {
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
+  margin-top: 2px;
 }
 
 /* Health bar damage animation */
