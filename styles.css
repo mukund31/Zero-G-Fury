@@ -119,9 +119,10 @@ body {
 /* Progress bar (top-center) */
 
 #progress-container {
-  position: absolute;
+  position: fixed;
   /* // top: 50px;  */
-  margin-top: 40%;
+  /* margin-top: 40%; */
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   width: 50%;
@@ -268,7 +269,7 @@ body {
 
 @media screen and (min-width: 1600px) {
   #progress-container {
-    margin-top: 35%;
+    /* margin-top: 35%; */
   }
   
 }
@@ -277,6 +278,7 @@ body {
   #progress-container {
     width: 30%;
     height: 10px;
+    /* margin-top: 70%; */
   }
 
   .controls-info {
@@ -309,11 +311,8 @@ body {
   #progress-container {
     width: 90%;
     height: 10px;
-    margin-top: 40%;
-  }
-
-  .controls-container {
-    /* display: none; */
+    bottom: 50px;
+    /* margin-top: 40%; */
   }
 
   .control-item {
@@ -373,7 +372,8 @@ body {
   #progress-container {
     width: 90%;
     height: 10px;
-    margin-top: 160%;
+    bottom: 60px;
+    /* margin-top: 160%; */
   }
 
   .controls-container {

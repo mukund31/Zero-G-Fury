@@ -163,18 +163,39 @@ function shootMissile() {
   shootSound.play();
 
   const missile = createMissile();
+  const missile1 = createMissile();
+  const missile2 = createMissile();
+  const missile3 = createMissile();
+  const missile4 = createMissile();
+
   missile.position.copy(shuttle.position);
+  missile1.position.copy(shuttle.position);
+  missile2.position.copy(shuttle.position);
+  missile3.position.copy(shuttle.position);
+  missile4.position.copy(shuttle.position);
   
   // Calculate direction toward aim point
   const direction = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, 0)).normalize();
+  const direction1 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, -60)).normalize();
+  const direction2 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, 60)).normalize();
+  const direction3 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, -30, 0)).normalize();
+  const direction4 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 30, 0)).normalize();
   
   // Set missile orientation
   const targetQuaternion = new THREE.Quaternion();
   targetQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 10), direction);
   missile.quaternion.copy(targetQuaternion);
+  missile1.quaternion.copy(targetQuaternion);
+  missile2.quaternion.copy(targetQuaternion);
+  missile3.quaternion.copy(targetQuaternion);
+  missile4.quaternion.copy(targetQuaternion);
   
   // Move missile slightly ahead of shuttle to avoid collision
   missile.position.add(direction.clone().multiplyScalar(3));
+  missile1.position.add(direction1.clone().multiplyScalar(3));
+  missile2.position.add(direction2.clone().multiplyScalar(3));
+  missile3.position.add(direction3.clone().multiplyScalar(3));
+  missile4.position.add(direction4.clone().multiplyScalar(3));
   
   // Set a fixed, larger velocity value for debugging
   const speed = 500; // Increased speed for visibility
@@ -184,9 +205,38 @@ function shootMissile() {
     lifetime: 0,
     initialPosition: missile.position.clone() // Store initial position for debugging
   };
+  missile1.userData = {
+    velocity: direction1.clone().multiplyScalar(speed),
+    lifetime: 0,
+    initialPosition: missile1.position.clone() // Store initial position for debugging
+  };
+  missile2.userData = {
+    velocity: direction2.clone().multiplyScalar(speed),
+    lifetime: 0,
+    initialPosition: missile2.position.clone() // Store initial position for debugging
+  };
+  missile3.userData = {
+    velocity: direction3.clone().multiplyScalar(speed),
+    lifetime: 0,
+    initialPosition: missile3.position.clone() // Store initial position for debugging
+  };
+  missile4.userData = {
+    velocity: direction4.clone().multiplyScalar(speed),
+    lifetime: 0,
+    initialPosition: missile4.position.clone() // Store initial position for debugging
+  };
 
   scene.add(missile);
+  scene.add(missile1);
+  scene.add(missile2);
+  scene.add(missile3);
+  scene.add(missile4);
+
   missiles.push(missile);
+  missiles.push(missile1);
+  missiles.push(missile2);
+  missiles.push(missile3);
+  missiles.push(missile4);
 
   setTimeout(() => missileCooldown = false, 300);
 }
@@ -1019,7 +1069,6 @@ audioLoader.load('assets/Sounds/spaceSound1.mp3', function(buffer) {
   backgroundMusic.setLoop(true);
   backgroundMusic.setVolume(0.3);
   backgroundMusic.play();
-  console.log("Background music playing.");
 
   // fadeAudio(musicGainNode.gain, 0, 1, 2);
 });
