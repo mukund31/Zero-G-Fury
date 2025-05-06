@@ -56,6 +56,25 @@ scene.add(aimLine);
 let highlightedAsteroid = null;
 
 
+// === UFO ENEMY SYSTEM ===
+let ufos = [];
+const ufoSpawnInterval = 5000; // Spawn a UFO every 10 seconds
+let lastUfoSpawnTime = 0;
+let ufoModel = null;
+// const ufoProjectiles = [];
+const ufoRadiationRate = 3000; // UFO fires every 3 seconds
+const radiationRange = 50; // Range of radiation effect
+const radiationDamage = 10; // Percentage of health damage
+
+// Shuttle health system
+let shuttleHealth = 100;
+let shuttleMaxHealth = 100;
+let shuttleInvulnerable = false;
+const shuttleInvulnerabilityTime = 1000; // 1 second of invulnerability after being hit
+
+
+
+
 
 // Crosshair marker
 const crosshair = new THREE.Mesh(
@@ -531,7 +550,7 @@ function loadGoal() {
 
 
 function detectCollisions() {
-  if (!shuttle) return;
+  if (!shuttle || !gameActive) return;
 
   // Check shuttle collisions with asteroids
   for (let i = 0; i < asteroids.length; i++) {
@@ -570,8 +589,8 @@ function detectCollisions() {
         missilesToRemove.push(m);
         asteroidsToRemove.push(a);
 
-        if (explosionSound.isPlaying) explosionSound.stop();
-        explosionSound.play();
+        if (asteroidExplosionSound.isPlaying) asteroidExplosionSound.stop();
+        asteroidExplosionSound.play();
         
         // Increment score
         score++;
@@ -582,6 +601,41 @@ function detectCollisions() {
         
         // Break inner loop - one missile hits one asteroid
         break;
+      }
+    }
+
+    // Check missile-UFO collisions
+    for (let j = ufos.length - 1; j >= 0; j--) {
+      const ufo = ufos[j];
+      
+      if (missile.position.distanceTo(ufo.position) < 5) {
+        // Damage UFO
+        ufo.userData.health -= 10;
+        
+        // Remove missile
+        scene.remove(missile);
+        missiles.splice(m, 1);
+        
+        if (ufoExplosionSound.isPlaying) ufoExplosionSound.stop();
+        ufoExplosionSound.play();
+
+        // Create explosion effect
+        createExplosion(missile.position.clone(), 0xffaa00, 3);
+        
+        // If UFO is destroyed
+        if (ufo.userData.health <= 0) {
+          // Create larger explosion
+          createExplosion(ufo.position.clone(), 0x00ff00, 10);
+          
+          // Remove UFO
+          scene.remove(ufo);
+          ufos.splice(j, 1);
+          
+          // Increase score
+          score += 5; // UFOs are worth more points
+          updateScoreDisplay();
+        }
+        break; // Break inner loop after collision
       }
     }
   }
@@ -1021,6 +1075,8 @@ let animationRunning = true;
 
 function animate() {
   const deltaTime = clock.getDelta();
+  const currentTime = performance.now();
+
   if (animationRunning) {
     requestAnimationFrame(animate);
   }
@@ -1031,6 +1087,10 @@ function animate() {
     updateMissiles(deltaTime);
   
     updateAiming();
+
+    updateUfos(deltaTime, currentTime); // Add this line
+    // updateUfoProjectiles(deltaTime); // Add this line too
+
     detectCollisions();
   }
   renderer.render(scene, camera);
@@ -1042,6 +1102,8 @@ function animate() {
 loadGoal();
 loadShuttle();
 loadAsteroids();
+loadUfoModel();
+createHealthDisplay();
 animate();
 
 // Add this near the beginning of your code, perhaps after the scene setup
@@ -1081,19 +1143,20 @@ camera.add(listener);
 const audioLoader = new THREE.AudioLoader();
 
 // Global sounds
-const backgroundMusic = new THREE.Audio(listener);
 const shootSound = new THREE.Audio(listener);
-const explosionSound = new THREE.Audio(listener);
+const asteroidExplosionSound = new THREE.Audio(listener);
+const ufoExplosionSound = new THREE.Audio(listener);
+const healthDamageSound = new THREE.Audio(listener);
 
 // Load background music
-audioLoader.load('assets/Sounds/spaceSound1.mp3', function(buffer) {
-  backgroundMusic.setBuffer(buffer);
-  backgroundMusic.setLoop(true);
-  backgroundMusic.setVolume(0.3);
-  backgroundMusic.play();
+// audioLoader.load('assets/Sounds/spaceSound1.mp3', function(buffer) {
+//   backgroundMusic.setBuffer(buffer);
+//   backgroundMusic.setLoop(true);
+//   backgroundMusic.setVolume(0.3);
+//   backgroundMusic.play();
 
-  // fadeAudio(musicGainNode.gain, 0, 1, 2);
-});
+//   // fadeAudio(musicGainNode.gain, 0, 1, 2);
+// });
 
 
 // Load shooting sound
@@ -1102,10 +1165,22 @@ audioLoader.load('assets/Sounds/shootMissile.mp3', function(buffer) {
   shootSound.setVolume(1);
 });
 
-// Load explosion sound
+// Load asteroid explosion sound
 audioLoader.load('assets/Sounds/asteroidExplosion.mp3', function(buffer) {
-  explosionSound.setBuffer(buffer);
-  explosionSound.setVolume(1);
+  asteroidExplosionSound.setBuffer(buffer);
+  asteroidExplosionSound.setVolume(1);
+});
+
+// Load UFO explosion sound
+audioLoader.load('assets/Sounds/ufoExplosion.mp3', function(buffer) {
+  ufoExplosionSound.setBuffer(buffer);
+  ufoExplosionSound.setVolume(1);
+});
+
+// Load health damage sound
+audioLoader.load('assets/Sounds/healthDamageSound.mp3', function(buffer) {
+  healthDamageSound.setBuffer(buffer);
+  healthDamageSound.setVolume(0.5);
 });
 
 
@@ -1121,3 +1196,467 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 });
+
+
+// Load UFO model
+function loadUfoModel() {
+  const loader = new THREE.GLTFLoader();
+  loader.load('assets/Models/ufo1.glb', 
+    // Success callback
+    (gltf) => {
+      ufoModel = gltf.scene;
+      ufoModel.scale.set(5,5,5); // Adjust scale as needed
+      // console.log("UFO model loaded successfully");
+    },
+    // Progress callback
+    undefined,
+    // Error callback
+    (error) => {
+      // console.error('Error loading UFO model:', error);
+    }
+  );
+}
+
+function spawnUfo() {
+  if (!ufoModel || !shuttle) return;
+  
+  // Clone the UFO model
+  const ufo = ufoModel.clone();
+  
+  // Calculate a position relative to the shuttle's forward direction
+  const shuttleForward = new THREE.Vector3(0, 0, -1).applyQuaternion(shuttle.quaternion);
+  
+  // Random offset from shuttle, but always in front of the player's view
+  const offsetX = (Math.random() - 0.5) * 50; // Left/right offset
+  const offsetY = (Math.random() - 0.5) * 50; // Up/down offset, slightly above eye level
+  const offsetZ = -100 - Math.random() * 100; // Always ahead of shuttle
+  
+  // Position relative to shuttle
+  ufo.position.copy(shuttle.position)
+     .add(new THREE.Vector3(offsetX, offsetY, offsetZ));
+
+  const currentTime = performance.now();
+  
+  // Store the relative position offset for maintaining position
+  ufo.userData = {
+    health: 10,
+    lastRadiationTime: currentTime - 1800, // Changed from lastFireTime
+    // Store relative offsets to maintain position
+    relativeOffset: new THREE.Vector3(offsetX, offsetY, offsetZ),
+    // Add some small random movement to make it less static
+    wobble: {
+      x: Math.random() * 0.2 - 0.1,
+      y: Math.random() * 0.2 - 0.1,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.5 + Math.random()
+    }
+  };
+  
+  // Apply green glow material to UFO parts
+  ufo.traverse(child => {
+    if (child.isMesh) {
+      // Clone the material to avoid affecting other instances
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map(m => m.clone());
+      } else {
+        child.material = child.material.clone();
+      }
+      
+      // If the material supports emissive properties, add a green glow
+      // if ('emissive' in child.material) {
+      //   child.material.emissive = new THREE.Color(0x00ff00);
+      //   child.material.emissiveIntensity = 0.3;
+      // }
+    }
+  });
+  
+  scene.add(ufo);
+  ufos.push(ufo);
+  
+  // Add a spotlight under the UFO for dramatic effect
+  const ufoLight = new THREE.SpotLight(0x00ff00, 1, 100, Math.PI / 6, 0.5, 1);
+  ufoLight.position.set(0, -2, 0);
+  ufoLight.target.position.set(0, -10, 0);
+  ufo.add(ufoLight);
+  ufo.add(ufoLight.target);
+}
+
+// Create radiation emission effect
+function emitRadiation(ufo) {
+  if (!shuttle) return;
+  
+  // Create radiation visual effect
+  createRadiationWave(ufo.position.clone(), 0, radiationRange);
+  
+  // Check if shuttle is within radiation range
+  const distanceToShuttle = ufo.position.distanceTo(shuttle.position);
+  
+  if (distanceToShuttle <= radiationRange && !shuttleInvulnerable) {
+    // Calculate damage based on distance (more damage when closer)
+    const distanceFactor = 1 - (distanceToShuttle / radiationRange);
+    const damage = radiationDamage * distanceFactor * shuttleMaxHealth / 100;
+    
+    // Apply damage to shuttle
+    shuttleHealth -= damage;
+    if (healthDamageSound.isPlaying) healthDamageSound.stop();
+      healthDamageSound.play();
+
+    // console.log("Damage:", damage);
+    
+    // Make shuttle invulnerable briefly
+    shuttleInvulnerable = true;
+    
+    // Visual feedback for radiation damage
+    shuttle.traverse(child => {
+      if (child.isMesh) {
+        child.userData.originalMaterial = child.material;
+        child.material = new THREE.MeshBasicMaterial({
+          color: 0x00ff00, // Green for radiation
+          transparent: true,
+          opacity: 0.7
+        });
+      }
+    });
+    
+    // Reset invulnerability after delay
+    setTimeout(() => {
+      shuttleInvulnerable = false;
+      shuttle.traverse(child => {
+        if (child.isMesh && child.userData.originalMaterial) {
+          child.material = child.userData.originalMaterial;
+        }
+      });
+    }, shuttleInvulnerabilityTime);
+    
+    // Check if shuttle is destroyed
+    if (shuttleHealth <= 0) {
+      gameOver(false);
+    }
+    
+    // Update health display
+    updateHealthDisplay();
+  }
+}
+
+// Create expanding radiation wave effect that damages the shuttle when it hits
+function createRadiationWave(position, currentRadius, maxRadius) {
+  // Create ring geometry for the radiation wave
+  const ringGeometry = new THREE.RingGeometry(
+    currentRadius, 
+    currentRadius + 0.5, 
+    32
+  );
+  
+  // Rotate to face camera
+  ringGeometry.rotateX(-Math.PI / 2);
+  
+  // Create material with glow effect
+  const ringMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00ff00,
+    transparent: true,
+    opacity: 0.7,
+    side: THREE.DoubleSide
+  });
+  
+  // Create mesh
+  const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+  ring.position.copy(position);
+  
+  // Add to scene
+  scene.add(ring);
+  
+  // Track whether this wave has already damaged the shuttle
+  let hasDamagedShuttle = false;
+  
+  // Animate the radiation wave
+  const expandSpeed = 40; // Units per second
+  let lastTime = performance.now();
+  
+  function animateWave() {
+    const now = performance.now();
+    const deltaTime = (now - lastTime) / 1000; // Convert to seconds
+    lastTime = now;
+    
+    // Expand the ring
+    currentRadius += expandSpeed * deltaTime;
+    
+    // Update ring geometry
+    scene.remove(ring);
+    ring.geometry.dispose();
+    
+    // Create new geometry with updated radius
+    ring.geometry = new THREE.RingGeometry(
+      currentRadius, 
+      currentRadius + 0.5 + (currentRadius / maxRadius) * 2, // Thicker as it expands
+      32
+    );
+    ring.geometry.rotateX(-Math.PI / 2);
+    
+    // Fade out as it expands
+    ring.material.opacity = 0.7 * (1 - currentRadius / maxRadius);
+    
+    // Add back to scene
+    scene.add(ring);
+    
+    // Check if the radiation wave has reached the shuttle
+    if (shuttle && !shuttleInvulnerable && !hasDamagedShuttle) {
+      const distanceToShuttle = position.distanceTo(shuttle.position);
+      
+      // If the radiation wave's current radius has reached the shuttle
+      if (Math.abs(distanceToShuttle - currentRadius) < 5) { // 5 unit tolerance for collision
+        // Calculate damage based on proximity to the source
+        const distanceFactor = 1 - (distanceToShuttle / maxRadius);
+        const damage = Math.max(5, 10 * distanceFactor); // Minimum 5 damage, maximum 10
+        
+        // Apply damage to shuttle
+        shuttleHealth -= damage;
+        if (healthDamageSound.isPlaying) healthDamageSound.stop();
+        healthDamageSound.play();
+        // console.log("Damage: " + damage);
+        
+        // Make shuttle invulnerable briefly
+        shuttleInvulnerable = true;
+        
+        // Visual feedback for radiation damage
+        shuttle.traverse(child => {
+          if (child.isMesh) {
+            child.userData.originalMaterial = child.material;
+            child.material = new THREE.MeshBasicMaterial({
+              color: 0x00ff00, // Green for radiation
+              transparent: true,
+              opacity: 0.7
+            });
+          }
+        });
+        
+        // Create a flash effect
+        const flash = new THREE.PointLight(0x00ff00, 5, 50);
+        flash.position.copy(shuttle.position);
+        scene.add(flash);
+        
+        // Remove flash after a short time
+        setTimeout(() => {
+          scene.remove(flash);
+        }, 200);
+        
+        // Reset invulnerability after delay
+        setTimeout(() => {
+          shuttleInvulnerable = false;
+          shuttle.traverse(child => {
+            if (child.isMesh && child.userData.originalMaterial) {
+              child.material = child.userData.originalMaterial;
+            }
+          });
+        }, shuttleInvulnerabilityTime);
+        
+        // Check if shuttle is destroyed
+        if (shuttleHealth <= 0) {
+          gameOver(false);
+        }
+        
+        // Update health display
+        updateHealthDisplay();
+        
+        // Mark as damaged so we don't apply damage multiple times
+        hasDamagedShuttle = true;
+      }
+    }
+    
+    // Continue animation until max radius
+    if (currentRadius < maxRadius) {
+      requestAnimationFrame(animateWave);
+    } else {
+      // Remove the ring when animation is complete
+      scene.remove(ring);
+      ring.geometry.dispose();
+      ring.material.dispose();
+    }
+  }
+  
+  // Start animation
+  animateWave();
+  
+  // Add a point light that fades with the radiation
+  const radiationLight = new THREE.PointLight(0x00ff00, 2, maxRadius);
+  radiationLight.position.copy(position);
+  scene.add(radiationLight);
+  
+  // Animate the light
+  const lightDuration = maxRadius / expandSpeed; // Time to reach max radius
+  const startIntensity = radiationLight.intensity;
+  const startTime = performance.now();
+  
+  function animateLight() {
+    const elapsed = (performance.now() - startTime) / 1000; // seconds
+    const progress = Math.min(elapsed / lightDuration, 1);
+    
+    radiationLight.intensity = startIntensity * (1 - progress);
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateLight);
+    } else {
+      scene.remove(radiationLight);
+    }
+  }
+  
+  requestAnimationFrame(animateLight);
+}
+
+
+
+
+// Update UFOs
+function updateUfos(deltaTime, currentTime) {
+  // Spawn new UFOs at interval
+  if (currentTime - lastUfoSpawnTime > ufoSpawnInterval) {
+    spawnUfo();
+    lastUfoSpawnTime = currentTime;
+  }
+  
+  // Update existing UFOs
+  for (let i = ufos.length - 1; i >= 0; i--) {
+    const ufo = ufos[i];
+    
+    if (shuttle) {
+      // Calculate the target position based on shuttle's current position and the stored offset
+      const targetPosition = shuttle.position.clone().add(ufo.userData.relativeOffset);
+      
+      // Add some wobble movement to make it less static
+      const wobble = ufo.userData.wobble;
+      const time = currentTime * 0.001; // Convert to seconds
+      
+      targetPosition.x += Math.sin(time * wobble.speed + wobble.phase) * wobble.x * 10;
+      targetPosition.y += Math.cos(time * wobble.speed + wobble.phase) * wobble.y * 10;
+      
+      // Smoothly interpolate current position toward target position (easing)
+      ufo.position.lerp(targetPosition, deltaTime * 2);
+      
+      // Make UFO rotate slowly for visual interest
+      ufo.rotateY(deltaTime * 0.5);
+      
+      // Radiation emission logic
+      if (currentTime - ufo.userData.lastRadiationTime > ufoRadiationRate) {
+        emitRadiation(ufo);
+        ufo.userData.lastRadiationTime = currentTime;
+        
+        // Pulse the UFO when emitting radiation
+        pulseUfo(ufo);
+      }
+      
+      // Constant radiation glow effect
+      // if (!ufo.userData.radiationGlow) {
+      //   createConstantRadiationGlow(ufo);
+      // }
+    }
+    
+    // Remove UFOs if their health is depleted
+    if (ufo.userData.health <= 0) {
+      // Create large radiation burst on destruction
+      createRadiationWave(ufo.position.clone(), 0, radiationRange * 1.5);
+      
+      // Create explosion effect
+      createExplosion(ufo.position.clone(), 0x00ff00, 10);
+      
+      // Remove UFO
+      if (ufo.userData.radiationGlow) {
+        scene.remove(ufo.userData.radiationGlow);
+      }
+      scene.remove(ufo);
+      ufos.splice(i, 1);
+      
+      // Increase score
+      score += 5;
+      updateScoreDisplay();
+    }
+  }
+}
+
+function pulseUfo(ufo) {
+  // Store original scale
+  const originalScale = ufo.scale.clone();
+  const maxScale = originalScale.clone().multiplyScalar(1.2);
+  const pulseDuration = 0.3; // seconds
+  const returnDuration = 0.5; // seconds
+  let startTime = performance.now();
+  let expanding = true;
+  
+  function animatePulse() {
+    const now = performance.now();
+    const elapsed = (now - startTime) / 1000; // seconds
+    
+    if (expanding) {
+      // Expanding phase
+      const progress = Math.min(elapsed / pulseDuration, 1);
+      // Power2 ease out
+      const easedProgress = 1 - Math.pow(1 - progress, 2);
+      
+      ufo.scale.set(
+        originalScale.x + (maxScale.x - originalScale.x) * easedProgress,
+        originalScale.y + (maxScale.y - originalScale.y) * easedProgress,
+        originalScale.z + (maxScale.z - originalScale.z) * easedProgress
+      );
+      
+      if (progress >= 1) {
+        expanding = false;
+        startTime = now;
+      }
+      
+      requestAnimationFrame(animatePulse);
+    } else {
+      // Contracting phase
+      const progress = Math.min(elapsed / returnDuration, 1);
+      // Elastic ease out approximation
+      const easedProgress = progress === 1 ? 1 : 
+        1 - Math.pow(2, -10 * progress) * Math.sin((progress * 10 - 0.75) * (2 * Math.PI) / 3);
+      
+      ufo.scale.set(
+        maxScale.x + (originalScale.x - maxScale.x) * easedProgress,
+        maxScale.y + (originalScale.y - maxScale.y) * easedProgress,
+        maxScale.z + (originalScale.z - maxScale.z) * easedProgress
+      );
+      
+      if (progress < 1) {
+        requestAnimationFrame(animatePulse);
+      }
+    }
+  }
+  
+  requestAnimationFrame(animatePulse);
+}
+
+
+// Create health display
+function createHealthDisplay() {
+  const healthContainer = document.createElement('div');
+  healthContainer.id = 'health-container';
+  healthContainer.innerHTML = `
+    <div class="health-label">HEALTH</div>
+    <div class="health-bar">
+      <div class="health-fill"></div>
+    </div>
+    <div class="health-value">100%</div>
+  `;
+  document.body.appendChild(healthContainer);
+  updateHealthDisplay();
+}
+
+// Update health display
+function updateHealthDisplay() {
+  const healthFill = document.querySelector('.health-fill');
+  const healthValue = document.querySelector('.health-value');
+  
+  if (healthFill && healthValue) {
+    const healthPercent = (shuttleHealth / shuttleMaxHealth) * 100;
+    healthFill.style.width = `${healthPercent}%`;
+    healthValue.textContent = `${Math.round(healthPercent)}%`;
+    
+    // Change color based on health
+    if (healthPercent > 60) {
+      healthFill.style.backgroundColor = '#4caf50'; // Green
+    } else if (healthPercent > 30) {
+      healthFill.style.backgroundColor = '#ff9800'; // Orange
+    } else {
+      healthFill.style.backgroundColor = '#f44336'; // Red
+    }
+  }
+}

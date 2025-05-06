@@ -415,3 +415,88 @@ body {
     /* margin-top: 40px; */
   }
 }
+
+/* Health display */
+#health-container {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-color: rgba(0, 20, 40, 0.7);
+  padding: 10px 15px;
+  border-radius: 8px;
+  border: 1px solid rgba(79, 195, 247, 0.5);
+  box-shadow: 0 0 15px rgba(79, 195, 247, 0.3);
+  z-index: 10;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.health-label {
+  color: #4fc3f7;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.health-bar {
+  width: 150px;
+  height: 12px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 5px;
+}
+
+.health-fill {
+  height: 100%;
+  width: 100%;
+  background-color: #4caf50;
+  border-radius: 6px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.health-value {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Health bar damage animation */
+@keyframes healthDamage {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  50% { transform: translateX(3px); }
+  75% { transform: translateX(-3px); }
+  100% { transform: translateX(0); }
+}
+
+.health-damage {
+  animation: healthDamage 0.3s ease;
+}
+
+/* Low health warning pulse */
+@keyframes lowHealthPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.low-health {
+  animation: lowHealthPulse 1s infinite;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  #health-container {
+    bottom: 90px; /* Position above the pause button */
+  }
+  
+  .health-bar {
+    width: 120px;
+  }
+}
