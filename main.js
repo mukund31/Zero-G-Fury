@@ -982,9 +982,31 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' || e.key === 'p') togglePause();
 });
 
-document.addEventListener('click', (e) => {
-  shootMissile();
+// document.addEventListener('', (e) => {
+//   shootMissile();
+// });
+
+let isFiring = false;
+let fireInterval;
+
+document.addEventListener('mousedown', (e) => {
+  if (!isFiring) {
+    isFiring = true;
+    shootMissile(); // Fire immediately
+    fireInterval = setInterval(shootMissile, 200); // Adjust interval as needed
+  }
 });
+
+document.addEventListener('mouseup', () => {
+  isFiring = false;
+  clearInterval(fireInterval);
+});
+
+document.addEventListener('mouseleave', () => {
+  isFiring = false;
+  clearInterval(fireInterval);
+});
+
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
