@@ -125,7 +125,7 @@ body {
   left: 50%;
   transform: translateX(-50%);
   width: 50%;
-  height: 30px;
+  height: 20px;
   background-color: rgba(255, 255, 255, 0.1);
   border: 1px solid #00f0ff;
   border-radius: 10px;
@@ -266,6 +266,13 @@ body {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
+@media screen and (min-width: 1600px) {
+  #progress-container {
+    margin-top: 35%;
+  }
+  
+}
+
 @media screen and ((min-width: 768px) and (max-width: 1200px)) {
   #progress-container {
     width: 30%;
@@ -281,7 +288,71 @@ body {
 }
 
 
-@media screen and (max-width: 768px) {
+@media screen and ((min-width: 600px) and (max-width: 768px)) {
+  #hud h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  
+  #hud {
+    /* padding: 5px 10px 0px 10px; */
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 22px;
+    /* margin-top: 40px; */
+    /* margin-right: 25px; */
+  }
+
+  #progress-container {
+    width: 90%;
+    height: 10px;
+    margin-top: 40%;
+  }
+
+  .controls-container {
+    /* display: none; */
+  }
+
+  .control-item {
+    display: none;
+  }
+  
+  #score-display {
+    right: 20px;
+    flex-direction: row;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 0;
+    padding-bottom: 0;
+    /* margin-top: 40px; */
+    margin-right: 25px;
+  }
+
+  .score-text {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 1px;
+    color: #4fc3f7;
+    text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+  }
+  
+  .score-value {
+    font-size: 15px;
+    color: #ffd700;
+    font-weight: bold;
+  }
+
+  #pause-button {
+    display: block;
+    /* margin-top: 40px; */
+  }
+}
+
+@media screen and (max-width: 600px) {
   #hud h1 {
     margin: 0;
     font-size: 15px;

@@ -1017,8 +1017,9 @@ const explosionSound = new THREE.Audio(listener);
 audioLoader.load('assets/Sounds/spaceSound1.mp3', function(buffer) {
   backgroundMusic.setBuffer(buffer);
   backgroundMusic.setLoop(true);
-  backgroundMusic.setVolume(0.4);
+  backgroundMusic.setVolume(0.3);
   backgroundMusic.play();
+  console.log("Background music playing.");
 
   // fadeAudio(musicGainNode.gain, 0, 1, 2);
 });
