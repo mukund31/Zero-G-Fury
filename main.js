@@ -1001,45 +1001,6 @@ function gameOver(success) {
   scoreElement.style.animationDelay = '0.2s';
   popup.appendChild(scoreElement);
 
-  // Add stats container
-  // const statsContainer = document.createElement('div');
-  // statsContainer.style.display = 'flex';
-  // statsContainer.style.justifyContent = 'space-around';
-  // statsContainer.style.margin = '30px 0';
-  // popup.appendChild(statsContainer);
-
-  // Add some game stats with icons
-  // const stats = [
-  //   { icon: '🚀', label: 'Distance', value: `${Math.abs(shuttle.position.z).toFixed(0)}` },
-  //   { icon: '💥', label: 'Asteroids', value: `${score}` }
-  // ];
-
-  // stats.forEach((stat, index) => {
-  //   const statItem = document.createElement('div');
-  //   statItem.className = 'stat-item';
-  //   statItem.style.animationDelay = `${0.4 + index * 0.2}s`;
-    
-  //   const icon = document.createElement('div');
-  //   icon.textContent = stat.icon;
-  //   icon.style.fontSize = '24px';
-  //   icon.style.marginBottom = '5px';
-    
-  //   const label = document.createElement('div');
-  //   label.textContent = stat.label;
-  //   label.style.fontSize = '14px';
-  //   label.style.opacity = '0.8';
-  //   label.style.marginBottom = '3px';
-    
-  //   const value = document.createElement('div');
-  //   value.textContent = stat.value;
-  //   value.style.fontSize = '20px';
-  //   value.style.fontWeight = 'bold';
-    
-  //   statItem.appendChild(icon);
-  //   statItem.appendChild(label);
-  //   statItem.appendChild(value);
-  //   statsContainer.appendChild(statItem);
-  // });
 
   // Add another divider
   const divider2 = document.createElement('div');
@@ -1197,9 +1158,11 @@ function showPauseMenu() {
 function resetGame() {
   // Reset score
   score = 0;
+  shuttleHealth = 100;
   gameActive = true;
   gamePaused = false;
   updateScoreDisplay();
+  updateHealthDisplay();
   
   // Reset shuttle position
   if (shuttle) {
@@ -1267,7 +1230,7 @@ scene.add(starField);
 
 // === EVENT LISTENERS ===
 document.addEventListener('keydown', (e) => {
-  if (e.key === ' ') shootMissile();
+  if (e.key === ' ' && !gamePaused && gameActive) shootMissile();
   if (e.key === 'Escape' || e.key === 'p') togglePause();
 });
 
@@ -1279,7 +1242,7 @@ let isFiring = false;
 let fireInterval;
 
 document.addEventListener('mousedown', (e) => {
-  if (!isFiring) {
+  if (!isFiring && !gamePaused && gameActive) {
     isFiring = true;
     shootMissile(); // Fire immediately
     fireInterval = setInterval(shootMissile, 200); // Adjust interval as needed
@@ -1497,11 +1460,6 @@ function spawnUfo() {
         child.material = child.material.clone();
       }
       
-      // If the material supports emissive properties, add a green glow
-      // if ('emissive' in child.material) {
-      //   child.material.emissive = new THREE.Color(0x00ff00);
-      //   child.material.emissiveIntensity = 0.3;
-      // }
     }
   });
   
@@ -1778,10 +1736,6 @@ function updateUfos(deltaTime, currentTime) {
         pulseUfo(ufo);
       }
       
-      // Constant radiation glow effect
-      // if (!ufo.userData.radiationGlow) {
-      //   createConstantRadiationGlow(ufo);
-      // }
     }
     
     // Remove UFOs if their health is depleted
