@@ -1245,25 +1245,25 @@ const healthDamageSound = new THREE.Audio(listener);
 // Load shooting sound
 audioLoader.load('assets/Sounds/shootMissile.mp3', function(buffer) {
   shootSound.setBuffer(buffer);
-  shootSound.setVolume(1);
+  shootSound.setVolume(0.05);
 });
 
 // Load asteroid explosion sound
 audioLoader.load('assets/Sounds/asteroidExplosion.mp3', function(buffer) {
   asteroidExplosionSound.setBuffer(buffer);
-  asteroidExplosionSound.setVolume(1);
+  asteroidExplosionSound.setVolume(0.1);
 });
 
 // Load UFO explosion sound
 audioLoader.load('assets/Sounds/ufoExplosion.mp3', function(buffer) {
   ufoExplosionSound.setBuffer(buffer);
-  ufoExplosionSound.setVolume(1);
+  ufoExplosionSound.setVolume(0.5);
 });
 
 // Load health damage sound
 audioLoader.load('assets/Sounds/healthDamageSound.mp3', function(buffer) {
   healthDamageSound.setBuffer(buffer);
-  healthDamageSound.setVolume(0.5);
+  healthDamageSound.setVolume(0.3);
 });
 
 
@@ -1323,7 +1323,7 @@ function spawnUfo() {
   // Store the relative position offset for maintaining position
   ufo.userData = {
     health: 10,
-    lastRadiationTime: currentTime - 1800, // Changed from lastFireTime
+    lastRadiationTime: currentTime - 1500, // Changed from lastFireTime
     // Store relative offsets to maintain position
     relativeOffset: new THREE.Vector3(offsetX, offsetY, offsetZ),
     // Add some small random movement to make it less static
