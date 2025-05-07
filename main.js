@@ -793,125 +793,6 @@ function showScorePopup() {
 }
 
 
-// function gameOver(success) {
-//   gameActive = false;
-//   gamePaused = false;
-
-//   hidePauseMenu();
-
-//   // First, check if there's already a popup and remove it
-//   const existingPopup = document.querySelector('.game-over-popup');
-//   if (existingPopup) {
-//     document.body.removeChild(existingPopup);
-//   }
-
-//   // Create popup container
-//   const popup = document.createElement('div');
-//   popup.className = 'game-over-popup'; // Add a class for easy selection
-//   popup.style.position = 'absolute';
-//   popup.style.top = '50%';
-//   popup.style.left = '50%';
-//   popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
-//   popup.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-//   popup.style.color = 'white';
-//   popup.style.padding = '30px';
-//   popup.style.borderRadius = '10px';
-//   popup.style.boxShadow = '0 0 20px rgba(0, 0, 255, 0.5)';
-//   popup.style.textAlign = 'center';
-//   popup.style.zIndex = '1000';
-//   popup.style.minWidth = '300px';
-//   popup.style.fontFamily = 'Arial, sans-serif';
-//   popup.style.opacity = '0';
-//   popup.style.transition = 'all 0.5s ease-out';
-  
-//   // Add title
-//   const title = document.createElement('h2');
-//   title.textContent = success ? '🎉 Mission Complete!' : '💥 Mission Failed!';
-//   title.style.color = success ? '#4CAF50' : '#F44336';
-//   title.style.marginTop = '0';
-//   title.className = 'pulse';
-//   popup.appendChild(title);
-  
-//   // Add score
-//   const scoreElement = document.createElement('h3');
-//   scoreElement.textContent = `Final Score: ${score}`;
-//   scoreElement.style.fontSize = '24px';
-//   scoreElement.style.margin = '20px 0';
-//   popup.appendChild(scoreElement);
-  
-  
-//   // Add replay button
-//   const replayButton = document.createElement('button');
-//   replayButton.textContent = 'Play Again';
-//   replayButton.style.backgroundColor = '#4CAF50';
-//   replayButton.style.color = 'white';
-//   replayButton.style.border = 'none';
-//   replayButton.style.padding = '10px 20px';
-//   replayButton.style.fontSize = '16px';
-//   replayButton.style.borderRadius = '5px';
-//   replayButton.style.cursor = 'pointer';
-//   replayButton.style.marginTop = '20px';
-//   replayButton.style.transition = 'background-color 0.3s';
-  
-//   replayButton.addEventListener('mouseover', () => {
-//     replayButton.style.backgroundColor = '#45a049';
-//   });
-  
-//   replayButton.addEventListener('mouseout', () => {
-//     replayButton.style.backgroundColor = '#4CAF50';
-//   });
-  
-//   // Use a flag to prevent multiple clicks
-//   let buttonClicked = false;
-  
-//   replayButton.addEventListener('click', () => {
-//     // Prevent multiple clicks
-//     if (buttonClicked) return;
-//     buttonClicked = true;
-    
-//     // Disable the button visually
-//     replayButton.style.backgroundColor = '#888';
-//     replayButton.style.cursor = 'default';
-//     replayButton.textContent = 'Restarting...';
-    
-//     // Fade out animation
-//     popup.style.opacity = '0';
-//     popup.style.transform = 'translate(-50%, -50%) scale(0.8)';
-    
-//     // Remove popup and reset game after animation completes
-//     setTimeout(() => {
-//       // Check if popup is still in the DOM before trying to remove it
-//       if (document.body.contains(popup)) {
-//         document.body.removeChild(popup);
-//       }
-      
-//       resetGame();
-      
-//       // Resume game loop
-//       if (!animationRunning) {
-//         animationRunning = true;
-//         requestAnimationFrame(animate);
-//       }
-//     }, 500); // Match the transition duration
-//   });
-  
-//   popup.appendChild(replayButton);
-  
-//   // Add to document
-//   document.body.appendChild(popup);
-  
-//   // Trigger entrance animation
-//   setTimeout(() => {
-//     popup.style.opacity = '1';
-//     popup.style.transform = 'translate(-50%, -50%) scale(1)';
-//   }, 10);
-  
-//   // Pause the game loop
-//   animationRunning = false;
-// }
-
-
-
 function gameOver(success) {
   gameActive = false;
   gamePaused = false;
@@ -1177,6 +1058,10 @@ function resetGame() {
   // Clear all asteroids
   asteroids.forEach(ast => scene.remove(ast));
   asteroids.length = 0;
+
+  // Clear all UFOs
+  ufos.forEach(u => scene.remove(u));
+  ufos.length = 0;
   
   // Create new asteroids
   createAsteroids();
