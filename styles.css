@@ -734,23 +734,29 @@ body {
     flex-direction: row;
     justify-content: space-between;
   }
-
+  
   .pause-resume-btn {
-    padding: 0.75rem;
+    padding: 0.5rem;
+    flex-direction: row;
+    justify-content: space-between;
   }
-
+  
   .pause-diff-btn {
-    padding: 0.75rem;
+    padding: 0.5rem;
+    flex-direction: row;
+    justify-content: space-between;
   }
-
+  
   .pause-restart-btn {
-    padding: 0.75rem;
+    padding: 0.5rem;
+    flex-direction: row;
+    justify-content: space-between;
   }
-
+  
   .difficulty-name {
     font-size: 1rem;
   }
-
+  
   .difficulty-desc {
     /* display: none; */
   }

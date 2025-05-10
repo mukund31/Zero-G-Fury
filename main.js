@@ -1985,7 +1985,7 @@ function showPauseMenu() {
   // Resume button
   const resumeButton = document.createElement('button');
   resumeButton.className = 'pause-resume-btn';
-  resumeButton.innerHTML = '<span class="difficulty-name">Resume Game</span><span class="difficulty-desc">Continue playing</span>';
+  resumeButton.innerHTML = '<span class="difficulty-name">Resume Game</span>';
   resumeButton.addEventListener('click', () => {
     document.body.removeChild(pauseMenu);
     gamePaused = false;
@@ -1996,7 +1996,7 @@ function showPauseMenu() {
   // Change difficulty button
   const changeDifficultyButton = document.createElement('button');
   changeDifficultyButton.className = 'pause-diff-btn';
-  changeDifficultyButton.innerHTML = '<span class="difficulty-name">Change Difficulty</span><span class="difficulty-desc">This will restart the game</span>';
+  changeDifficultyButton.innerHTML = '<span class="difficulty-name">Change Difficulty</span>';
   changeDifficultyButton.addEventListener('click', () => {
     document.body.removeChild(pauseMenu);
     showDifficultyScreen();
@@ -2005,7 +2005,7 @@ function showPauseMenu() {
   // Restart button
   const restartButton = document.createElement('button');
   restartButton.className = 'pause-restart-btn';
-  restartButton.innerHTML = '<span class="difficulty-name">Restart Game</span><span class="difficulty-desc">Same difficulty</span>';
+  restartButton.innerHTML = '<span class="difficulty-name">Restart Game</span>';
   restartButton.addEventListener('click', () => {
     document.body.removeChild(pauseMenu);
     resetGame();
