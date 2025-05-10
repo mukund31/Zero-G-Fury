@@ -2266,7 +2266,8 @@ function emitRadiation(ufo) {
     const damage = radiationDamage * distanceFactor * shuttleMaxHealth / 100;
     
     // Apply damage to shuttle
-    shuttleHealth -= damage;
+    // shuttleHealth -= damage;
+    shuttleHealth = Math.max(shuttleHealth-damage, 0);
     if (healthDamageSound.isPlaying) healthDamageSound.stop();
       healthDamageSound.play();
 
@@ -2379,7 +2380,8 @@ function createRadiationWave(position, currentRadius, maxRadius) {
         const damage = Math.max(5, 10 * distanceFactor); // Minimum 5 damage, maximum 10
         
         // Apply damage to shuttle
-        shuttleHealth -= damage;
+        // shuttleHealth -= damage;
+        shuttleHealth = Math.max(shuttleHealth-damage, 0);
         if (healthDamageSound.isPlaying) healthDamageSound.stop();
         healthDamageSound.play();
         // console.log("Damage: " + damage);
