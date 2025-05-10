@@ -126,9 +126,11 @@ function loadPowerUpModels() {
   });
   
   // Load shield power-up model
-  loader.load('assets/Models/shieldModel.glb', (gltf) => {
+  loader.load('assets/Models/shield3.glb', (gltf) => {
     const model = gltf.scene;
-    model.scale.set(0.07, 0.07, 0.07); // Adjust scale as needed
+
+    model.scale.set(1, 1, 1); // Adjust scale as needed
+    // model.scale.set(0.07, 0.07, 0.07); // Adjust scale as needed
     // model.scale.set(0.01, 0.01, 0.01); // Adjust scale as needed
     
     // Add glow effect
@@ -619,10 +621,10 @@ function shootMissile() {
   
   // Calculate direction toward aim point
   const direction = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, 0)).normalize();
-  const direction1 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, -60)).normalize();
-  const direction2 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, 60)).normalize();
-  const direction3 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, -30, 0)).normalize();
-  const direction4 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 30, 0)).normalize();
+  const direction1 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, -40)).normalize();
+  const direction2 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 0, 40)).normalize();
+  const direction3 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, -20, 0)).normalize();
+  const direction4 = aimPoint.clone().sub(shuttle.position).add(new THREE.Vector3(0, 20, 0)).normalize();
   
   // Set missile orientation
   const targetQuaternion = new THREE.Quaternion();
