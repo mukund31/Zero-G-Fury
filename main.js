@@ -102,6 +102,91 @@ let shieldActive = false;
 let shieldEndTime = 0;
 let shieldMesh = null;
 
+// === INVENTORY SYSTEM ===
+const inventory = {
+  health: 0,
+  shield: 0,
+  maxItems: 3 // Maximum number of each item type
+};
+
+// UI elements for inventory
+let inventoryDisplay = null;
+
+
+// Create a visual effect when using a health booster
+function createHealthUseEffect() {
+  if (!shuttle) return;
+  
+  // Create healing particles
+  const particleCount = 30;
+  const geometry = new THREE.BufferGeometry();
+  const vertices = [];
+  
+  for (let i = 0; i < particleCount; i++) {
+    vertices.push(
+      (Math.random() - 0.5) * 5, // x
+      (Math.random() - 0.5) * 5, // y
+      (Math.random() - 0.5) * 5  // z
+    );
+  }
+  
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  
+  const material = new THREE.PointsMaterial({
+    color: 0xff5555,
+    size: 0.5,
+    transparent: true,
+    opacity: 1
+  });
+  
+  const particles = new THREE.Points(geometry, material);
+  shuttle.add(particles);
+  
+  // Add a healing light
+  const light = new THREE.PointLight(0xff5555, 5, 10);
+  shuttle.add(light);
+  
+  // Animate particles
+  const startTime = performance.now();
+  const duration = 1000; // 1 second
+  
+  function animateHealEffect() {
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Scale particles outward
+    particles.scale.set(1 + progress * 2, 1 + progress * 2, 1 + progress * 2);
+    
+    // Fade out
+    particles.material.opacity = 1 - progress;
+    
+    // Fade out light
+    light.intensity = 5 * (1 - progress);
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateHealEffect);
+    } else {
+      shuttle.remove(particles);
+      shuttle.remove(light);
+      geometry.dispose();
+      material.dispose();
+    }
+  }
+  
+  requestAnimationFrame(animateHealEffect);
+}
+
+// Add keyboard controls for inventory
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ') {
+    shootMissile();
+  } else if ((e.key === 'h' || e.key === 'H')  && !gamePaused && gameActive) {
+    useHealthBooster();
+  } else if ((e.key === 's' || e.key === 'S') && !gamePaused && gameActive) {
+    useShieldBooster();
+  }
+});
+
 
 // Load power-up models
 function loadPowerUpModels() {
@@ -343,32 +428,352 @@ function updatePowerUps(deltaTime, currentTime) {
   }
 }
 
-// Collect a power-up
+// Create and initialize the inventory UI
+function createInventoryUI() {
+  // Create the main inventory container
+  inventoryDisplay = document.createElement('div');
+  inventoryDisplay.id = 'inventory-display';
+  inventoryDisplay.style.position = 'absolute';
+  inventoryDisplay.style.bottom = '20px';
+  inventoryDisplay.style.right = '20px';
+  inventoryDisplay.style.display = 'flex';
+  inventoryDisplay.style.gap = '15px';
+  inventoryDisplay.style.padding = '10px';
+  // inventoryDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  inventoryDisplay.style.borderRadius = '10px';
+  inventoryDisplay.style.zIndex = '1000';
+  
+  // Create health item
+  const healthItem = createInventoryItem(
+    'health-item',
+    '❤️',
+    '#ff5555',
+    () => useHealthBooster()
+  );
+  inventoryDisplay.appendChild(healthItem);
+  
+  // Create shield item
+  const shieldItem = createInventoryItem(
+    'shield-item',
+    '🛡️',
+    '#55aaff',
+    () => useShieldBooster()
+  );
+  inventoryDisplay.appendChild(shieldItem);
+  
+  // Add to document
+  document.body.appendChild(inventoryDisplay);
+  
+  // Add keyboard hint
+  const keyboardHint = document.createElement('div');
+  keyboardHint.style.position = 'absolute';
+  keyboardHint.style.bottom = '5px';
+  keyboardHint.style.right = '20px';
+  keyboardHint.style.fontSize = '12px';
+  keyboardHint.style.color = 'rgba(255, 255, 255, 0.7)';
+  inventoryDisplay.appendChild(keyboardHint);
+  
+  // Update the display
+  updateInventoryDisplay();
+}
+
+// Create an individual inventory item UI
+function createInventoryItem(id, icon, color, useFunction) {
+  const itemContainer = document.createElement('div');
+  itemContainer.id = id;
+  itemContainer.className = 'inventory-item';
+  itemContainer.style.position = 'relative';
+  itemContainer.style.width = '50px';
+  itemContainer.style.height = '50px';
+  itemContainer.style.borderRadius = '10px';
+  itemContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+  itemContainer.style.display = 'flex';
+  itemContainer.style.justifyContent = 'center';
+  itemContainer.style.alignItems = 'center';
+  itemContainer.style.fontSize = '24px';
+  itemContainer.style.cursor = 'pointer';
+  itemContainer.style.transition = 'all 0.2s ease';
+  itemContainer.style.boxShadow = `0 0 10px ${color}40`;
+  
+  // Icon
+  const itemIcon = document.createElement('div');
+  itemIcon.textContent = icon;
+  itemContainer.appendChild(itemIcon);
+  
+  // Count bubble
+  const countBubble = document.createElement('div');
+  countBubble.className = 'item-count';
+  countBubble.style.position = 'absolute';
+  countBubble.style.top = '-10px';
+  countBubble.style.right = '-10px';
+  countBubble.style.width = '25px';
+  countBubble.style.height = '25px';
+  countBubble.style.borderRadius = '50%';
+  countBubble.style.backgroundColor = color;
+  countBubble.style.color = 'white';
+  countBubble.style.display = 'flex';
+  countBubble.style.justifyContent = 'center';
+  countBubble.style.alignItems = 'center';
+  countBubble.style.fontSize = '14px';
+  countBubble.style.fontWeight = 'bold';
+  countBubble.textContent = '0';
+  itemContainer.appendChild(countBubble);
+  
+  // Add hover effect
+  itemContainer.addEventListener('mouseenter', () => {
+    itemContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+    itemContainer.style.transform = 'scale(1.1)';
+  });
+  
+  itemContainer.addEventListener('mouseleave', () => {
+    itemContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    itemContainer.style.transform = 'scale(1)';
+  });
+  
+  // Add active effect
+  itemContainer.addEventListener('mousedown', () => {
+    itemContainer.style.transform = 'scale(0.95)';
+  });
+  
+  itemContainer.addEventListener('mouseup', () => {
+    itemContainer.style.transform = 'scale(1.1)';
+  });
+  
+  // Add click handler
+  itemContainer.addEventListener('click', useFunction);
+  
+  return itemContainer;
+}
+
+// Update the inventory display
+function updateInventoryDisplay() {
+  if (!inventoryDisplay) return;
+  
+  // Update health count
+  const healthCount = inventoryDisplay.querySelector('#health-item .item-count');
+  if (healthCount) {
+    healthCount.textContent = inventory.health;
+    
+    // Show/hide count bubble based on inventory
+    if (inventory.health <= 0) {
+      healthCount.style.opacity = '0.3';
+    } else {
+      healthCount.style.opacity = '1';
+    }
+  }
+  
+  // Update shield count
+  const shieldCount = inventoryDisplay.querySelector('#shield-item .item-count');
+  if (shieldCount) {
+    shieldCount.textContent = inventory.shield;
+    
+    // Show/hide count bubble based on inventory
+    if (inventory.shield <= 0) {
+      shieldCount.style.opacity = '0.3';
+    } else {
+      shieldCount.style.opacity = '1';
+    }
+  }
+  
+  // Update item availability visual feedback
+  const healthItem = inventoryDisplay.querySelector('#health-item');
+  if (healthItem) {
+    if (inventory.health <= 0) {
+      healthItem.style.opacity = '0.5';
+    } else {
+      healthItem.style.opacity = '1';
+    }
+  }
+  
+  const shieldItem = inventoryDisplay.querySelector('#shield-item');
+  if (shieldItem) {
+    if (inventory.shield <= 0) {
+      shieldItem.style.opacity = '0.5';
+    } else {
+      shieldItem.style.opacity = '1';
+    }
+  }
+}
+
+// Add visual feedback when using items
+function useHealthBooster() {
+  // Check if we have any health boosters
+  if (inventory.health <= 0) {
+    showMessage('No Health Boosters Available!', '#ff5555');
+    shakeInventoryItem('health-item');
+    return;
+  }
+  
+  // Check if health is already full
+  if (shuttleHealth >= 100) {
+    showMessage('Health Already Full!', '#ff5555');
+    shakeInventoryItem('health-item');
+    return;
+  }
+  
+  // Use the health booster
+  inventory.health--;
+  
+  // Apply health boost
+  shuttleHealth = Math.min(shuttleHealth + powerUpSettings.healthBoost, 100);
+  updateHealthDisplay();
+  
+  // Play sound and show message
+  if (window.healthUseSound) healthUseSound.play();
+  showMessage('Health Restored! +25', '#ff5555');
+  
+  // Create visual effect around the shuttle
+  createHealthUseEffect();
+  
+  // Flash the inventory item
+  flashInventoryItem('health-item', '#ff5555');
+  
+  // Update inventory display
+  updateInventoryDisplay();
+}
+
+function useShieldBooster() {
+  // Check if we have any shield boosters
+  if (inventory.shield <= 0) {
+    showMessage('No Shield Boosters Available!', '#55aaff');
+    shakeInventoryItem('shield-item');
+    return;
+  }
+  
+  // Check if shield is already active
+  if (shieldActive) {
+    showMessage('Shield Already Active!', '#55aaff');
+    shakeInventoryItem('shield-item');
+    return;
+  }
+  
+  // Use the shield booster
+  inventory.shield--;
+  
+  // Activate shield
+  activateShield();
+  
+  // Play sound and show message
+  if (window.shieldUseSound) shieldUseSound.play();
+  showMessage('Radiation Shield Activated!', '#55aaff');
+  
+  // Flash the inventory item
+  flashInventoryItem('shield-item', '#55aaff');
+  
+  // Update inventory display
+  updateInventoryDisplay();
+}
+
+// Add visual feedback when collecting items
 function collectPowerUp(powerUp) {
+  // Safety check
+  if (!powerUp || !powerUp.userData) {
+    console.error("Invalid power-up object passed to collectPowerUp");
+    return;
+  }
+  
   const type = powerUp.userData.type;
   
   // Create collection effect
   createPowerUpCollectionEffect(powerUp.position.clone(), type);
   
-  // Play sound effect
+  // Add to inventory based on type
   if (type === powerUpTypes.HEALTH) {
-    if (window.healthPickupSound) healthPickupSound.play();
+    // Only add if we're not at max capacity
+    if (inventory.health < inventory.maxItems) {
+      inventory.health++;
+      if (window.healthPickupSound) healthPickupSound.play();
+      showMessage('Health Booster Added to Inventory', '#ff5555');
+      flashInventoryItem('health-item', '#ff5555');
+    } else {
+      showMessage('Health Inventory Full!', '#ff5555');
+      shakeInventoryItem('health-item');
+    }
   } else {
-    if (window.shieldPickupSound) shieldPickupSound.play();
+    // Only add if we're not at max capacity
+    if (inventory.shield < inventory.maxItems) {
+      inventory.shield++;
+      if (window.shieldPickupSound) shieldPickupSound.play();
+      showMessage('Shield Booster Added to Inventory', '#55aaff');
+      flashInventoryItem('shield-item', '#55aaff');
+    } else {
+      showMessage('Shield Inventory Full!', '#55aaff');
+      shakeInventoryItem('shield-item');
+    }
   }
   
-  // Apply power-up effect
-  if (type === powerUpTypes.HEALTH) {
-    // Health boost
-    shuttleHealth = Math.min(shuttleHealth + powerUpSettings.healthBoost, 100);
-    updateHealthDisplay();
-    showMessage('Health Restored! +25', '#ff5555');
-  } else {
-    // Shield activation
-    activateShield();
-    showMessage('Radiation Shield Activated!', '#55aaff');
+  // Update the inventory display
+  updateInventoryDisplay();
+}
+
+// Flash effect for inventory item when used/collected
+function flashInventoryItem(itemId, color) {
+  const item = document.getElementById(itemId);
+  if (!item) return;
+  
+  // Create a flash overlay
+  const flash = document.createElement('div');
+  flash.style.position = 'absolute';
+  flash.style.top = '0';
+  flash.style.left = '0';
+  flash.style.width = '100%';
+  flash.style.height = '100%';
+  flash.style.borderRadius = '10px';
+  flash.style.backgroundColor = color;
+  flash.style.opacity = '0.7';
+  flash.style.pointerEvents = 'none';
+  
+  item.appendChild(flash);
+  
+  // Animate the flash
+  let opacity = 0.7;
+  const fadeInterval = setInterval(() => {
+    opacity -= 0.1;
+    flash.style.opacity = opacity.toString();
+    
+    if (opacity <= 0) {
+      clearInterval(fadeInterval);
+      item.removeChild(flash);
+    }
+  }, 50);
+}
+
+// Shake effect for inventory item when action fails
+function shakeInventoryItem(itemId) {
+  const item = document.getElementById(itemId);
+  if (!item) return;
+  
+  // Add shake animation
+  item.style.animation = 'shake 0.5s';
+  
+  // Remove animation after it completes
+  setTimeout(() => {
+    item.style.animation = '';
+  }, 500);
+  
+  // Add CSS for shake animation if it doesn't exist
+  if (!document.getElementById('shake-animation')) {
+    const style = document.createElement('style');
+    style.id = 'shake-animation';
+    style.textContent = `
+      @keyframes shake {
+        0% { transform: translateX(0); }
+        10% { transform: translateX(-5px); }
+        20% { transform: translateX(5px); }
+        30% { transform: translateX(-5px); }
+        40% { transform: translateX(5px); }
+        50% { transform: translateX(-5px); }
+        60% { transform: translateX(5px); }
+        70% { transform: translateX(-5px); }
+        80% { transform: translateX(5px); }
+        90% { transform: translateX(-5px); }
+        100% { transform: translateX(0); }
+      }
+    `;
+    document.head.appendChild(style);
   }
 }
+
 
 // Create visual effect when collecting a power-up
 function createPowerUpCollectionEffect(position, type) {
@@ -1499,7 +1904,6 @@ function showPauseMenu() {
 }
 
 
-
 function resetGame() {
   // Reset score
   score = 0;
@@ -1514,6 +1918,10 @@ function resetGame() {
   gamePaused = false;
   updateScoreDisplay();
   updateHealthDisplay();
+
+  inventory.health = 0;
+  inventory.shield = 0;
+  updateInventoryDisplay();
   
   // Reset shuttle position
   if (shuttle) {
@@ -1669,6 +2077,7 @@ loadAsteroids();
 loadUfoModel();
 loadPowerUpModels();
 createHealthDisplay();
+createInventoryUI();
 animate();
 
 // Add this near the beginning of your code, perhaps after the scene setup
@@ -2064,8 +2473,6 @@ function createRadiationWave(position, currentRadius, maxRadius) {
 }
 
 
-
-
 // Update UFOs
 function updateUfos(deltaTime, currentTime) {
   // Spawn new UFOs at interval
@@ -2220,7 +2627,7 @@ function updateHealthDisplay() {
 
 
 // Show a temporary message on screen
-function showMessage(text, color = '#ffffff', duration = 2000) {
+function showMessage(text, color = '#ffffff', duration = 1500) {
   // Create message element if it doesn't exist
   let messageElement = document.getElementById('game-message');
   if (!messageElement) {

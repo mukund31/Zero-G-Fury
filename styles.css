@@ -311,7 +311,7 @@ body {
   #progress-container {
     width: 90%;
     height: 10px;
-    bottom: 50px;
+    bottom: 30px;
     /* margin-top: 40%; */
   }
 
@@ -372,7 +372,7 @@ body {
   #progress-container {
     width: 90%;
     height: 10px;
-    bottom: 60px;
+    bottom: 20px;
     /* margin-top: 160%; */
   }
 
@@ -526,7 +526,7 @@ body {
 
 @media (max-width: 600px) {
   #health-container {
-    bottom: 80px;
+    bottom: 40px;
     padding: 3px 5px;
     left: 20px;
     gap: 5px;
