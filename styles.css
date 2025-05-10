@@ -750,7 +750,7 @@ body {
   }
 
   .difficulty-desc {
-    display: none;
+    /* display: none; */
   }
 }
 
