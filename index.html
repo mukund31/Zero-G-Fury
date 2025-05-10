@@ -74,6 +74,31 @@
             </button>
         </div>
 
+        <!-- Difficulty Selection Screen -->
+        <div id="difficulty-screen" class="game-screen">
+            <div class="screen-content">
+                <h2>Select Difficulty</h2>
+                
+                <div class="difficulty-options">
+                    <button id="easy-btn" class="difficulty-btn">
+                        <span class="difficulty-name">Easy</span>
+                        <span class="difficulty-desc">Fewer asteroids, slower speed</span>
+                    </button>
+                    
+                    <button id="medium-btn" class="difficulty-btn">
+                        <span class="difficulty-name">Medium</span>
+                        <span class="difficulty-desc">Balanced challenge</span>
+                    </button>
+                    
+                    <button id="hard-btn" class="difficulty-btn">
+                        <span class="difficulty-name">Hard</span>
+                        <span class="difficulty-desc">More asteroids, faster speed</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+
         
 
     </div>
@@ -84,26 +109,7 @@
     
     <script>
         // Update the score display function in JavaScript
-        function updateScoreDisplay() {
-            const scoreValue = document.querySelector('.score-value');
-            if (scoreValue) {
-                scoreValue.textContent = score;
-                
-                // Add animation class
-                scoreValue.classList.add('score-change');
-                
-                // Remove animation class after animation completes
-                setTimeout(() => {
-                    scoreValue.classList.remove('score-change');
-                }, 300);
-            }
-            
-            // Update distance display separately
-            const distanceDisplay = document.getElementById('distance-display');
-            if (distanceDisplay && shuttle && goal) {
-                distanceDisplay.textContent = `Distance: ${Math.abs(shuttle.position.z - goal.position.z).toFixed(0)}`;
-            }
-        }
+        
     </script>
 </body>
 </html>

@@ -10,16 +10,27 @@ let score = 0;
 const scoreDisplay = document.getElementById('score-display');
 scoreDisplay.style.fontSize = '24px';
 
-function updateScoreDisplay() {
-  scoreDisplay.textContent = `Score: ${score}`; 
-  
-  // Optional: Add a visual effect when score changes
-  scoreDisplay.style.color = '#ffff00';
-  setTimeout(() => {
-    scoreDisplay.style.color = '';
-  }, 300);
-}
 
+function updateScoreDisplay() {
+  const scoreValue = document.querySelector('.score-value');
+  if (scoreValue) {
+      scoreValue.textContent = score;
+      
+      // Add animation class
+      scoreValue.classList.add('score-change');
+      
+      // Remove animation class after animation completes
+      setTimeout(() => {
+          scoreValue.classList.remove('score-change');
+      }, 300);
+  }
+  
+  // Update distance display separately
+  const distanceDisplay = document.getElementById('distance-display');
+  if (distanceDisplay && shuttle && goal) {
+      distanceDisplay.textContent = `Distance: ${Math.abs(shuttle.position.z - goal.position.z).toFixed(0)}`;
+  }
+}
 
 // === AIMING SYSTEM ===
 const raycaster = new THREE.Raycaster();
@@ -58,13 +69,13 @@ let highlightedAsteroid = null;
 
 // === UFO ENEMY SYSTEM ===
 let ufos = [];
-const ufoSpawnInterval = 7000; // Spawn a UFO every 7 seconds
+let ufoSpawnInterval = 7000; // Spawn a UFO every 7 seconds
 let lastUfoSpawnTime = 0;
 let ufoModel = null;
 // const ufoProjectiles = [];
-const ufoRadiationRate = 3000; // UFO fires every 3 seconds
+let ufoRadiationRate = 3000; // UFO fires every 3 seconds
 const radiationRange = 50; // Range of radiation effect
-const radiationDamage = 10; // Percentage of health damage
+let radiationDamage = 10; // Percentage of health damage
 
 // Shuttle health system
 let shuttleHealth = 100;
@@ -79,6 +90,28 @@ const crosshair = new THREE.Mesh(
 );
 scene.add(crosshair);
 
+// === STARS ===
+const starsGeometry = new THREE.BufferGeometry();
+const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+const starsVertices = [];
+
+for (let i = 0; i < 5000; i++) {
+  starsVertices.push(
+    (Math.random() - 0.5) * 5000,
+    (Math.random() - 0.5) * 5000,
+    (Math.random() - 0.5) * 5000
+  );
+}
+
+starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+
+const stars = new THREE.Points(starsGeometry, starsMaterial);
+
+// Wrap in a container so we can move it relative to the shuttle
+const starField = new THREE.Object3D();
+starField.add(stars);
+scene.add(starField);
+
 
 // === POWER-UP SYSTEM ===
 const powerUps = [];
@@ -88,7 +121,7 @@ const powerUpTypes = {
 };
 
 // Power-up settings
-const powerUpSettings = {
+let powerUpSettings = {
   spawnRate: 15000, // milliseconds between spawn attempts
   lastSpawnTime: performance.now(), // Last time a power-up was spawned
   spawnChance: 0.9, // 70% chance to spawn when timer triggers
@@ -102,8 +135,11 @@ let shieldActive = false;
 let shieldEndTime = 0;
 let shieldMesh = null;
 
+// GOAl
+let goal;
+
 // === INVENTORY SYSTEM ===
-const inventory = {
+let inventory = {
   health: 0,
   shield: 0,
   maxItems: 3 // Maximum number of each item type
@@ -112,6 +148,211 @@ const inventory = {
 // UI elements for inventory
 let inventoryDisplay = null;
 
+// Add this to your GAME STATE section
+let gamePaused = true;
+let gameActive = false;
+let gameInitialized = false;
+
+const clock = new THREE.Clock();
+
+let animationRunning = true;
+
+// === SHUTTLE ===
+let shuttle;
+const shuttleSpeed = 2;
+
+// === DIFFICULTY SETTINGS ===
+const difficultySettings = {
+  current: 'medium', // Default difficulty
+  
+  easy: {
+    powerUpSpawnRate: 12000,
+    powerUpSpawnChance: 0.8,
+    shieldDuration: 8000,
+    healthBoost: 25,
+    maxInventoryCap: 3,
+    ufoRadiationRate: 5000,
+    ufoSpawnInterval: 7000
+  },
+  medium: {
+    powerUpSpawnRate: 13000,
+    powerUpSpawnChance: 0.7,
+    shieldDuration: 6000,
+    healthBoost: 20,
+    maxInventoryCap: 2,
+    ufoRadiationRate: 4000,
+    ufoSpawnInterval: 6000
+  },
+  hard: {
+    powerUpSpawnRate: 15000,
+    powerUpSpawnChance: 0.6,
+    shieldDuration: 5500,
+    healthBoost: 20,
+    maxInventoryCap: 1,
+    ufoRadiationRate: 2500,
+    ufoSpawnInterval: 4000
+  }
+};
+
+initGame();
+
+document.addEventListener('mousemove', (event) => {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  mouseMoved = true;
+});
+
+// Add pause functionality with Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ') {
+    shootMissile();
+  } else if (e.key === 'h' || e.key === 'H') {
+    useHealthBooster();
+  } else if (e.key === 's' || e.key === 'S') {
+    useShieldBooster();
+  } else if (e.key === 'Escape' || e.key === 'P' || e.key === 'p') {
+    // Toggle pause menu
+    if (gamePaused && document.getElementById('pause-menu')) {
+      // If game is paused and menu is showing, resume
+      document.body.removeChild(document.getElementById('pause-menu'));
+      gamePaused = false;
+    } else if (!gamePaused) {
+      // If game is running, pause and show menu
+      showPauseMenu();
+    }
+  }
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (!isFiring && !gamePaused && gameActive) {
+    isFiring = true;
+    shootMissile(); // Fire immediately
+    fireInterval = setInterval(shootMissile, 200); // Adjust interval as needed
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  isFiring = false;
+  clearInterval(fireInterval);
+});
+
+document.addEventListener('mouseleave', () => {
+  isFiring = false;
+  clearInterval(fireInterval);
+});
+
+
+// Mobile pause button functionality
+document.addEventListener('DOMContentLoaded', () => {
+  const pauseButton = document.querySelector('.pause-btn');
+  if (pauseButton) {
+      pauseButton.addEventListener('click', () => {
+          togglePause();
+          pauseButton.classList.toggle('paused', gamePaused);
+          // Toggle the paused class for the button appearance
+          
+      });
+  }
+});
+
+// Show the difficulty selection screen
+function showDifficultyScreen() {
+  const difficultyScreen = document.getElementById('difficulty-screen');
+  if (!difficultyScreen) return;
+  
+  // Make sure the screen is visible
+  difficultyScreen.style.display = 'flex';
+  
+  // Add event listeners to buttons
+  document.getElementById('easy-btn').addEventListener('click', () => {
+    selectDifficulty('easy');
+    const pauseButton = document.querySelector('.pause-btn');
+    pauseButton.classList.toggle('paused', gamePaused);
+  });
+  
+  document.getElementById('medium-btn').addEventListener('click', () => {
+    selectDifficulty('medium');
+    const pauseButton = document.querySelector('.pause-btn');
+    pauseButton.classList.toggle('paused', gamePaused);
+  });
+  
+  document.getElementById('hard-btn').addEventListener('click', () => {
+    selectDifficulty('hard');
+    const pauseButton = document.querySelector('.pause-btn');
+    pauseButton.classList.toggle('paused', gamePaused);
+  });
+  
+  // Pause the game if it's running
+  gamePaused = true;
+}
+
+// Select a difficulty and start the game
+function selectDifficulty(difficulty) {
+  // Hide the difficulty screen
+  const difficultyScreen = document.getElementById('difficulty-screen');
+  if (difficultyScreen) {
+    difficultyScreen.style.display = 'none';
+  }
+  
+  // Set the current difficulty
+  difficultySettings.current = difficulty;
+  
+  // Apply difficulty settings
+  applyDifficultySettings();
+  
+  // Start or resume the game
+  gamePaused = false;
+  
+  // Show a message about the selected difficulty
+  let message, color;
+  switch(difficulty) {
+    case 'easy':
+      message = 'Easy Mode: Good luck on your delivery!';
+      color = '#88ff88';
+      break;
+    case 'medium':
+      message = 'Medium Mode: Stay alert, pilot!';
+      color = '#ffcc66';
+      break;
+    case 'hard':
+      message = 'Hard Mode: Only the best survive!';
+      color = '#ff6666';
+      break;
+  }
+  
+  showMessage(message, color, 3000);
+
+  
+  // Initialize game if it hasn't been initialized yet
+  if (!gameInitialized) {
+    initGame();
+  }
+  resetGame();
+}
+
+// Apply the current difficulty settings to the game
+function applyDifficultySettings() {
+  const settings = difficultySettings[difficultySettings.current];
+  
+  // Update power-up settings
+  powerUpSettings.spawnRate = settings.powerUpSpawnRate;
+  powerUpSettings.spawnChance = settings.powerUpSpawnChance;
+  powerUpSettings.shieldDuration = settings.shieldDuration;
+  powerUpSettings.healthBoost = settings.healthBoost;
+  inventory.maxItems = settings.maxInventoryCap;
+  ufoRadiationRate = settings.ufoRadiationRate;
+  ufoSpawnInterval = settings.ufoSpawnInterval;
+  
+
+  // updateDifficultyIndicator();
+  
+}
+
+// Add this to the end of your script to show the difficulty screen on load
+window.addEventListener('load', () => {
+  // Start by showing the difficulty selection screen
+  showDifficultyScreen();
+});
 
 // Create a visual effect when using a health booster
 function createHealthUseEffect() {
@@ -176,17 +417,6 @@ function createHealthUseEffect() {
   requestAnimationFrame(animateHealEffect);
 }
 
-// Add keyboard controls for inventory
-document.addEventListener('keydown', (e) => {
-  if (e.key === ' ') {
-    shootMissile();
-  } else if ((e.key === 'h' || e.key === 'H')  && !gamePaused && gameActive) {
-    useHealthBooster();
-  } else if ((e.key === 's' || e.key === 'S') && !gamePaused && gameActive) {
-    useShieldBooster();
-  }
-});
-
 
 // Load power-up models
 function loadPowerUpModels() {
@@ -203,9 +433,7 @@ function loadPowerUpModels() {
     
     
     powerUpSettings.healthModel = model;
-    // console.log("Health power-up model loaded");
   }, undefined, (error) => {
-    // console.error("Error loading health model:", error);
     // Create fallback model
     powerUpSettings.healthModel = createFallbackHealthModel();
   });
@@ -224,7 +452,6 @@ function loadPowerUpModels() {
   
     
     powerUpSettings.shieldModel = model;
-    // console.log("Shield power-up model loaded");
   }, undefined, (error) => {
     // console.error("Error loading shield model:", error);
     // Create fallback model
@@ -363,7 +590,6 @@ function spawnPowerUp(currentTime) {
   scene.add(powerUpModel);
   powerUps.push(powerUpModel);
   
-  // console.log(`Spawned ${type} power-up`);
 }
 
 // Add target indicator to make it clear the power-up should be shot
@@ -620,7 +846,7 @@ function useHealthBooster() {
   
   // Play sound and show message
   if (window.healthUseSound) healthUseSound.play();
-  showMessage('Health Restored! +25', '#ff5555');
+  showMessage('Health Booster Used!', '#ff5555');
   
   // Create visual effect around the shuttle
   createHealthUseEffect();
@@ -635,7 +861,7 @@ function useHealthBooster() {
 function useShieldBooster() {
   // Check if we have any shield boosters
   if (inventory.shield <= 0) {
-    showMessage('No Shield Boosters Available!', '#55aaff');
+    showMessage('No Shields Available!', '#55aaff');
     shakeInventoryItem('shield-item');
     return;
   }
@@ -683,7 +909,7 @@ function collectPowerUp(powerUp) {
     if (inventory.health < inventory.maxItems) {
       inventory.health++;
       if (window.healthPickupSound) healthPickupSound.play();
-      showMessage('Health Booster Added to Inventory', '#ff5555');
+      showMessage('Health Booster Collected', '#ff5555');
       flashInventoryItem('health-item', '#ff5555');
     } else {
       showMessage('Health Inventory Full!', '#ff5555');
@@ -694,7 +920,7 @@ function collectPowerUp(powerUp) {
     if (inventory.shield < inventory.maxItems) {
       inventory.shield++;
       if (window.shieldPickupSound) shieldPickupSound.play();
-      showMessage('Shield Booster Added to Inventory', '#55aaff');
+      showMessage('Shield Collected', '#55aaff');
       flashInventoryItem('shield-item', '#55aaff');
     } else {
       showMessage('Shield Inventory Full!', '#55aaff');
@@ -970,13 +1196,6 @@ function updateAiming() {
 
 
 
-
-document.addEventListener('mousemove', (event) => {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-  mouseMoved = true;
-});
-
 // === MISSILE SYSTEM ===
 const missiles = [];
 let missileCooldown = false;
@@ -1124,9 +1343,7 @@ function updateMissiles(deltaTime) {
 }
 
 
-// === SHUTTLE ===
-let shuttle;
-const shuttleSpeed = 2;
+
 
 function loadShuttle() {
   const loader = new THREE.GLTFLoader();
@@ -1305,7 +1522,7 @@ function updateAsteroids(deltaTime) {
 
 // === GOAL ===
 
-let goal;
+
 function loadGoal() {
   // Remove any existing goal
   if (goal) scene.remove(goal);
@@ -1496,11 +1713,9 @@ function detectCollisions() {
   
   // Process power-ups that were hit (in reverse order to maintain correct indices)
   for (let i = powerUpsToCollect.length - 1; i >= 0; i--) {
-    console.log("count: ",powerUpsToCollect.length);
 
     const index = powerUpsToCollect[i];
     const powerUp = powerUps[index];
-    console.log("Powerup: ",powerUp);
     // Apply power-up effect
     collectPowerUp(powerUp);
     
@@ -1661,209 +1876,70 @@ function showScorePopup() {
   }
 }
 
-
+// Modify the gameOver function to show a restart button
 function gameOver(success) {
-  gameActive = false;
-  gamePaused = false;
-  hidePauseMenu();
-
-  // First, check if there's already a popup and remove it
-  const existingPopup = document.querySelector('.game-over-popup');
-  if (existingPopup) {
-    document.body.removeChild(existingPopup);
-  }
-
-  // Create popup container
-  const popup = document.createElement('div');
-  popup.className = 'game-over-popup';
-  popup.style.position = 'absolute';
-  popup.style.top = '50%';
-  popup.style.left = '50%';
-  popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
-  popup.style.backgroundColor = 'rgba(10, 15, 30, 0.85)'; // Darker, more space-like background
-  popup.style.color = '#e0e7ff'; // Light blue-white text
-  popup.style.padding = '40px';
-  popup.style.borderRadius = '15px';
-  popup.style.boxShadow = '0 0 30px rgba(0, 150, 255, 0.6), 0 0 60px rgba(0, 50, 255, 0.3)'; // Dual glow effect
-  popup.style.textAlign = 'center';
-  popup.style.zIndex = '1000';
-  popup.style.minWidth = '350px';
-  popup.style.maxWidth = '450px';
-  popup.style.fontFamily = '"Orbitron", sans-serif'; // Space-themed fonts
-  popup.style.opacity = '0';
-  popup.style.transition = 'all 0.6s cubic-bezier(0.19, 1, 0.22, 1)'; // Smoother easing
-  popup.style.backdropFilter = 'blur(10px)'; // Blur effect behind popup
-  popup.style.border = '1px solid rgba(100, 150, 255, 0.3)'; // Subtle border
-
-  // Add title with animation
-  const title = document.createElement('h2');
-  title.textContent = success ? 'MISSION COMPLETE' : 'MISSION FAILED';
-  title.style.color = success ? '#4eff75' : '#ff5b4a'; // Brighter colors
-  title.style.marginTop = '0';
-  title.style.fontSize = '28px';
-  title.style.letterSpacing = '2px';
-  title.style.textTransform = 'uppercase';
-  title.style.textShadow = success ? 
-    '0 0 10px rgba(78, 255, 117, 0.7)' : 
-    '0 0 10px rgba(255, 91, 74, 0.7)'; // Text glow
-  title.style.animation = 'pulse 1.5s infinite';
-  popup.appendChild(title);
-
-  // Add CSS animation for pulse effect
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    .stat-item {
-      animation: fadeIn 0.5s forwards;
-      opacity: 0;
-    }
-  `;
-  document.head.appendChild(style);
-
-  // Add divider
-  const divider = document.createElement('div');
-  divider.style.height = '2px';
-  divider.style.background = 'linear-gradient(to right, transparent, rgba(100, 150, 255, 0.7), transparent)';
-  divider.style.margin = '20px 0';
-  popup.appendChild(divider);
-
-  // Add score with animation
-  const scoreElement = document.createElement('h3');
-  scoreElement.textContent = `FINAL SCORE: ${score}`;
-  scoreElement.style.fontSize = '26px';
-  scoreElement.style.margin = '25px 0';
-  scoreElement.style.fontWeight = 'bold';
-  scoreElement.style.color = '#ffffff';
-  scoreElement.style.textShadow = '0 0 5px rgba(255, 255, 255, 0.5)';
-  scoreElement.className = 'stat-item';
-  scoreElement.style.animationDelay = '0.2s';
-  popup.appendChild(scoreElement);
-
-
-  // Add another divider
-  const divider2 = document.createElement('div');
-  divider2.style.height = '2px';
-  divider2.style.background = 'linear-gradient(to right, transparent, rgba(100, 150, 255, 0.7), transparent)';
-  divider2.style.margin = '20px 0';
-  popup.appendChild(divider2);
-
-  // Add replay button with improved styling
-  const replayButton = document.createElement('button');
-  replayButton.textContent = 'PLAY AGAIN';
-  replayButton.style.backgroundColor = success ? '#4CAF50' : '#2196F3';
-  replayButton.style.color = 'white';
-  replayButton.style.border = 'none';
-  replayButton.style.padding = '12px 30px';
-  replayButton.style.fontSize = '16px';
-  replayButton.style.borderRadius = '30px';
-  replayButton.style.cursor = 'pointer';
-  replayButton.style.marginTop = '20px';
-  replayButton.style.transition = 'all 0.3s ease';
-  replayButton.style.fontWeight = 'bold';
-  replayButton.style.letterSpacing = '1px';
-  replayButton.style.boxShadow = success ? 
-    '0 0 15px rgba(76, 175, 80, 0.5)' : 
-    '0 0 15px rgba(33, 150, 243, 0.5)';
-  replayButton.style.position = 'relative';
-  replayButton.style.overflow = 'hidden';
-  replayButton.className = 'stat-item';
-  replayButton.style.animationDelay = '0.8s';
-
-  // Add hover effects
-  replayButton.addEventListener('mouseover', () => {
-    replayButton.style.backgroundColor = success ? '#45a049' : '#0b7dda';
-    replayButton.style.transform = 'translateY(-2px)';
-    replayButton.style.boxShadow = success ? 
-      '0 0 20px rgba(76, 175, 80, 0.7)' : 
-      '0 0 20px rgba(33, 150, 243, 0.7)';
+  gamePaused = true;
+  
+  // Create game over screen
+  const gameOverScreen = document.createElement('div');
+  gameOverScreen.className = 'game-screen';
+  gameOverScreen.id = 'game-over-screen';
+  
+  const content = document.createElement('div');
+  content.className = 'screen-content';
+  
+  // Set message based on success/failure
+  const title = document.createElement('h1');
+  title.textContent = success ? 'Mission Complete!' : 'Mission Failed';
+  title.style.color = success ? '#88ff88' : '#ff6666';
+  
+  const scoreText = document.createElement('h2');
+  scoreText.textContent = `Score: ${score}`;
+  
+  // Create buttons
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.display = 'flex';
+  buttonContainer.style.flexDirection = 'column';
+  buttonContainer.style.gap = '15px';
+  buttonContainer.style.marginTop = '30px';
+  
+  // Restart button (same difficulty)
+  const restartButton = document.createElement('button');
+  restartButton.className = 'difficulty-btn';
+  restartButton.innerHTML = '<span class="difficulty-name" id="restart-btn">Restart</span><span class="difficulty-desc">Same difficulty</span>';
+  restartButton.addEventListener('click', () => {
+    document.body.removeChild(gameOverScreen);
+    resetGame();
   });
-
-  replayButton.addEventListener('mouseout', () => {
-    replayButton.style.backgroundColor = success ? '#4CAF50' : '#2196F3';
-    replayButton.style.transform = 'translateY(0)';
-    replayButton.style.boxShadow = success ? 
-      '0 0 15px rgba(76, 175, 80, 0.5)' : 
-      '0 0 15px rgba(33, 150, 243, 0.5)';
+  
+  // Change difficulty button
+  const changeDifficultyButton = document.createElement('button');
+  changeDifficultyButton.className = 'difficulty-btn';
+  changeDifficultyButton.innerHTML = '<span class="difficulty-name">Change Difficulty</span><span class="difficulty-desc">Select a new difficulty level</span>';
+  changeDifficultyButton.addEventListener('click', () => {
+    document.body.removeChild(gameOverScreen);
+    showDifficultyScreen();
   });
-
-  // Use a flag to prevent multiple clicks
-  let buttonClicked = false;
-
-  replayButton.addEventListener('click', () => {
-    // Prevent multiple clicks
-    if (buttonClicked) return;
-    buttonClicked = true;
-    
-    // Add click animation
-    replayButton.style.transform = 'scale(0.95)';
-    
-    // Disable the button visually
-    setTimeout(() => {
-      replayButton.style.backgroundColor = '#888';
-      replayButton.style.cursor = 'default';
-      replayButton.textContent = 'RESTARTING...';
-      replayButton.style.boxShadow = '0 0 10px rgba(136, 136, 136, 0.5)';
-    }, 150);
-    
-    // Fade out animation
-    setTimeout(() => {
-      popup.style.opacity = '0';
-      popup.style.transform = 'translate(-50%, -50%) scale(0.8)';
-    }, 300);
-    
-    // Remove popup and reset game after animation completes
-    setTimeout(() => {
-      // Check if popup is still in the DOM before trying to remove it
-      if (document.body.contains(popup)) {
-        document.body.removeChild(popup);
-      }
-      
-      resetGame();
-      
-      // Resume game loop
-      if (!animationRunning) {
-        animationRunning = true;
-        requestAnimationFrame(animate);
-      }
-    }, 800); // Match the transition duration
-  });
-
-  popup.appendChild(replayButton);
-
-  // Add to document
-  document.body.appendChild(popup);
-
-  // Trigger entrance animation
-  setTimeout(() => {
-    popup.style.opacity = '1';
-    popup.style.transform = 'translate(-50%, -50%) scale(1)';
-  }, 10);
-
-  // Pause the game loop
-  animationRunning = false;
+  
+  // Add elements to the screen
+  buttonContainer.appendChild(restartButton);
+  buttonContainer.appendChild(changeDifficultyButton);
+  
+  content.appendChild(title);
+  content.appendChild(scoreText);
+  content.appendChild(buttonContainer);
+  
+  gameOverScreen.appendChild(content);
+  document.body.appendChild(gameOverScreen);
 }
 
-
-// Add this to your GAME STATE section
-let gamePaused = false;
-let gameActive = true;
 
 // Add these functions for pause functionality
 function togglePause() {
   if (!gameActive) return; // Don't pause if game is over
   
+  const pauseButton = document.querySelector('.pause-btn');
+  pauseButton.classList.toggle('paused', gamePaused);
   gamePaused = !gamePaused;
   
   if (gamePaused) {
@@ -1881,27 +1957,122 @@ function hidePauseMenu() {
   gamePaused = false;
 }
 
+// Add a pause menu
 function showPauseMenu() {
+  if (document.getElementById('pause-menu')) return;
+  
+  gamePaused = true;
+  
   // Create pause menu
   const pauseMenu = document.createElement('div');
+  pauseMenu.className = 'game-screen';
   pauseMenu.id = 'pause-menu';
-  pauseMenu.className = 'pause-menu fade-in';
   
-  pauseMenu.innerHTML = `
-    <h2>GAME PAUSED</h2>
-    <button id="resume-button">RESUME</button>
-    <button id="restart-button-pause">RESTART</button>
-  `;
+  const content = document.createElement('div');
+  content.className = 'screen-content';
   
-  document.body.appendChild(pauseMenu);
+  // Title
+  const title = document.createElement('h1');
+  title.textContent = 'Game Paused';
   
-  // Add event listeners
-  document.getElementById('resume-button').addEventListener('click', togglePause);
-  document.getElementById('restart-button-pause').addEventListener('click', () => {
-    hidePauseMenu();
-    resetGame();
+  // Create buttons
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.display = 'flex';
+  buttonContainer.style.flexDirection = 'column';
+  buttonContainer.style.gap = '15px';
+  buttonContainer.style.marginTop = '30px';
+  
+  // Resume button
+  const resumeButton = document.createElement('button');
+  resumeButton.className = 'pause-resume-btn';
+  resumeButton.innerHTML = '<span class="difficulty-name">Resume Game</span><span class="difficulty-desc">Continue playing</span>';
+  resumeButton.addEventListener('click', () => {
+    document.body.removeChild(pauseMenu);
+    gamePaused = false;
+    const pauseButton = document.querySelector('.pause-btn');
+    pauseButton.classList.toggle('paused', gamePaused);
   });
+  
+  // Change difficulty button
+  const changeDifficultyButton = document.createElement('button');
+  changeDifficultyButton.className = 'pause-diff-btn';
+  changeDifficultyButton.innerHTML = '<span class="difficulty-name">Change Difficulty</span><span class="difficulty-desc">This will restart the game</span>';
+  changeDifficultyButton.addEventListener('click', () => {
+    document.body.removeChild(pauseMenu);
+    showDifficultyScreen();
+  });
+  
+  // Restart button
+  const restartButton = document.createElement('button');
+  restartButton.className = 'pause-restart-btn';
+  restartButton.innerHTML = '<span class="difficulty-name">Restart Game</span><span class="difficulty-desc">Same difficulty</span>';
+  restartButton.addEventListener('click', () => {
+    document.body.removeChild(pauseMenu);
+    resetGame();
+    const pauseButton = document.querySelector('.pause-btn');
+    pauseButton.classList.toggle('paused', gamePaused);
+  });
+  
+  // Add elements to the screen
+  buttonContainer.appendChild(resumeButton);
+  buttonContainer.appendChild(changeDifficultyButton);
+  buttonContainer.appendChild(restartButton);
+  
+  content.appendChild(title);
+  content.appendChild(buttonContainer);
+  
+  pauseMenu.appendChild(content);
+  document.body.appendChild(pauseMenu);
 }
+
+
+
+
+// Create a difficulty indicator for the HUD
+function createDifficultyIndicator() {
+  const difficultyIndicator = document.createElement('div');
+  difficultyIndicator.id = 'difficulty-indicator';
+  difficultyIndicator.style.position = 'absolute';
+  difficultyIndicator.style.top = '20px';
+  difficultyIndicator.style.left = '20px';
+  difficultyIndicator.style.padding = '5px 10px';
+  difficultyIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+  difficultyIndicator.style.color = 'white';
+  difficultyIndicator.style.borderRadius = '5px';
+  difficultyIndicator.style.fontSize = '14px';
+  difficultyIndicator.style.fontFamily = 'Arial, sans-serif';
+  
+  // updateDifficultyIndicator();
+  
+  document.body.appendChild(difficultyIndicator);
+}
+
+// Update the difficulty indicator text and color
+// function updateDifficultyIndicator() {
+//   const indicator = document.getElementById('difficulty-indicator');
+//   if (!indicator) return;
+  
+//   let color, text;
+//   switch(difficultySettings.current) {
+//     case 'easy':
+//       color = '#88ff88';
+//       text = 'EASY';
+//       break;
+//     case 'medium':
+//       color = '#ffcc66';
+//       text = 'MEDIUM';
+//       break;
+//     case 'hard':
+//       color = '#ff6666';
+//       text = 'HARD';
+//       break;
+//   }
+  
+//   indicator.textContent = `Difficulty: ${text}`;
+//   indicator.style.borderLeft = `4px solid ${color}`;
+// }
+
+
 
 
 function resetGame() {
@@ -1973,33 +2144,9 @@ light.position.set(5, 10, 7);
 scene.add(light);
 scene.add(new THREE.AmbientLight(0x404040));
 
-// === STARS ===
-const starsGeometry = new THREE.BufferGeometry();
-const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
-const starsVertices = [];
 
-for (let i = 0; i < 5000; i++) {
-  starsVertices.push(
-    (Math.random() - 0.5) * 5000,
-    (Math.random() - 0.5) * 5000,
-    (Math.random() - 0.5) * 5000
-  );
-}
 
-starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
 
-const stars = new THREE.Points(starsGeometry, starsMaterial);
-
-// Wrap in a container so we can move it relative to the shuttle
-const starField = new THREE.Object3D();
-starField.add(stars);
-scene.add(starField);
-
-// === EVENT LISTENERS ===
-document.addEventListener('keydown', (e) => {
-  if (e.key === ' ' && !gamePaused && gameActive) shootMissile();
-  if (e.key === 'Escape' || e.key === 'p') togglePause();
-});
 
 // document.addEventListener('', (e) => {
 //   shootMissile();
@@ -2007,24 +2154,6 @@ document.addEventListener('keydown', (e) => {
 
 let isFiring = false;
 let fireInterval;
-
-document.addEventListener('mousedown', (e) => {
-  if (!isFiring && !gamePaused && gameActive) {
-    isFiring = true;
-    shootMissile(); // Fire immediately
-    fireInterval = setInterval(shootMissile, 200); // Adjust interval as needed
-  }
-});
-
-document.addEventListener('mouseup', () => {
-  isFiring = false;
-  clearInterval(fireInterval);
-});
-
-document.addEventListener('mouseleave', () => {
-  isFiring = false;
-  clearInterval(fireInterval);
-});
 
 
 window.addEventListener('resize', () => {
@@ -2034,9 +2163,7 @@ window.addEventListener('resize', () => {
 });
 
 // === MAIN LOOP ===
-const clock = new THREE.Clock();
 
-let animationRunning = true;
 
 function animate() {
   const deltaTime = clock.getDelta();
@@ -2071,14 +2198,21 @@ function animate() {
 }
 
 // === INITIALIZE GAME ===
-loadGoal();
-loadShuttle();
-loadAsteroids();
-loadUfoModel();
-loadPowerUpModels();
-createHealthDisplay();
-createInventoryUI();
-animate();
+function initGame() {
+  loadAsteroids();
+  loadGoal();
+  loadShuttle();
+  loadUfoModel();
+  loadPowerUpModels();
+  createHealthDisplay();
+  createInventoryUI();
+  createDifficultyIndicator();
+  addStyles();
+  
+  gameInitialized = true;
+  animate();
+}
+
 
 // Add this near the beginning of your code, perhaps after the scene setup
 function addStyles() {
@@ -2098,8 +2232,6 @@ function addStyles() {
   document.head.appendChild(style);
 }
 
-// Call this function during initialization
-addStyles();
 
 // const maxDistance = 10000; // Adjust to match your level's total distance
 let currentDistance = 0;
@@ -2158,20 +2290,6 @@ audioLoader.load('assets/Sounds/healthDamageSound.mp3', function(buffer) {
 });
 
 
-// Mobile pause button functionality
-document.addEventListener('DOMContentLoaded', () => {
-  const pauseButton = document.querySelector('.pause-btn');
-  if (pauseButton) {
-      pauseButton.addEventListener('click', () => {
-          togglePause();
-          
-          // Toggle the paused class for the button appearance
-          pauseButton.classList.toggle('paused', gamePaused);
-      });
-  }
-});
-
-
 // Load UFO model
 function loadUfoModel() {
   const loader = new THREE.GLTFLoader();
@@ -2180,7 +2298,6 @@ function loadUfoModel() {
     (gltf) => {
       ufoModel = gltf.scene;
       ufoModel.scale.set(5,5,5); // Adjust scale as needed
-      // console.log("UFO model loaded successfully");
     },
     // Progress callback
     undefined,
@@ -2259,54 +2376,6 @@ function emitRadiation(ufo) {
   
   // Check if shuttle is within radiation range
   const distanceToShuttle = ufo.position.distanceTo(shuttle.position);
-  
-  if (distanceToShuttle <= radiationRange && !shuttleInvulnerable) {
-    // Calculate damage based on distance (more damage when closer)
-    const distanceFactor = 1 - (distanceToShuttle / radiationRange);
-    const damage = radiationDamage * distanceFactor * shuttleMaxHealth / 100;
-    
-    // Apply damage to shuttle
-    // shuttleHealth -= damage;
-    shuttleHealth = Math.max(shuttleHealth-damage, 0);
-    if (healthDamageSound.isPlaying) healthDamageSound.stop();
-      healthDamageSound.play();
-
-    // console.log("Damage:", damage);
-    
-    // Make shuttle invulnerable briefly
-    shuttleInvulnerable = true;
-    
-    // Visual feedback for radiation damage
-    shuttle.traverse(child => {
-      if (child.isMesh && !shieldMesh.visible) {
-        console.log("Applying radiation damage to:", child.name);
-        child.userData.originalMaterial = child.material;
-        child.material = new THREE.MeshBasicMaterial({
-          color: 0x00ff00, // Green for radiation
-          transparent: true,
-          opacity: 0.1
-        });
-      }
-    });
-    
-    // Reset invulnerability after delay
-    setTimeout(() => {
-      shuttleInvulnerable = false;
-      shuttle.traverse(child => {
-        if (child.isMesh && child.userData.originalMaterial) {
-          child.material = child.userData.originalMaterial;
-        }
-      });
-    }, shuttleInvulnerabilityTime);
-    
-    // Check if shuttle is destroyed
-    if (shuttleHealth <= 0) {
-      gameOver(false);
-    }
-    
-    // Update health display
-    updateHealthDisplay();
-  }
 }
 
 // Create expanding radiation wave effect that damages the shuttle when it hits
@@ -2370,7 +2439,7 @@ function createRadiationWave(position, currentRadius, maxRadius) {
     scene.add(ring);
     
     // Check if the radiation wave has reached the shuttle
-    if (shuttle && !shuttleInvulnerable && !hasDamagedShuttle) {
+    if (shuttle && !shieldActive && !hasDamagedShuttle) {
       const distanceToShuttle = position.distanceTo(shuttle.position);
       
       // If the radiation wave's current radius has reached the shuttle
@@ -2384,7 +2453,6 @@ function createRadiationWave(position, currentRadius, maxRadius) {
         shuttleHealth = Math.max(shuttleHealth-damage, 0);
         if (healthDamageSound.isPlaying) healthDamageSound.stop();
         healthDamageSound.play();
-        // console.log("Damage: " + damage);
         
         // Make shuttle invulnerable briefly
         shuttleInvulnerable = true;
