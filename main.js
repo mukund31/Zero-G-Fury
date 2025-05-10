@@ -72,16 +72,440 @@ let shuttleMaxHealth = 100;
 let shuttleInvulnerable = false;
 const shuttleInvulnerabilityTime = 1000; // 1 second of invulnerability after being hit
 
-
-
-
-
 // Crosshair marker
 const crosshair = new THREE.Mesh(
   new THREE.SphereGeometry(0.1, 8, 8),
   new THREE.MeshBasicMaterial({ color: 0xffff00 })
 );
 scene.add(crosshair);
+
+
+// === POWER-UP SYSTEM ===
+const powerUps = [];
+const powerUpTypes = {
+  HEALTH: 'health',
+  SHIELD: 'shield'
+};
+
+// Power-up settings
+const powerUpSettings = {
+  spawnRate: 15000, // milliseconds between spawn attempts
+  lastSpawnTime: performance.now(), // Last time a power-up was spawned
+  spawnChance: 0.9, // 70% chance to spawn when timer triggers
+  maxPowerUps: 1, // Maximum number of power-ups active at once
+  shieldDuration: 8000, // Shield lasts 10 seconds
+  healthBoost: 25 // Health boost amount (percentage)
+};
+
+// Shield state
+let shieldActive = false;
+let shieldEndTime = 0;
+let shieldMesh = null;
+
+
+// Load power-up models
+function loadPowerUpModels() {
+  const loader = new THREE.GLTFLoader();
+  
+  // Load health power-up model
+  loader.load('assets/Models/pumping_heart_model.glb', (gltf) => {
+    const model = gltf.scene;
+    model.scale.set(0.1, 0.1, 0.1); // Adjust scale as needed
+    
+    // Add glow effect
+    const healthLight = new THREE.PointLight(0xff0000, 1, 10);
+    model.add(healthLight);
+    
+    
+    powerUpSettings.healthModel = model;
+    // console.log("Health power-up model loaded");
+  }, undefined, (error) => {
+    // console.error("Error loading health model:", error);
+    // Create fallback model
+    powerUpSettings.healthModel = createFallbackHealthModel();
+  });
+  
+  // Load shield power-up model
+  loader.load('assets/Models/shieldModel.glb', (gltf) => {
+    const model = gltf.scene;
+    model.scale.set(0.07, 0.07, 0.07); // Adjust scale as needed
+    // model.scale.set(0.01, 0.01, 0.01); // Adjust scale as needed
+    
+    // Add glow effect
+    const shieldLight = new THREE.PointLight(0x00aaff, 1, 10);
+    model.add(shieldLight);
+  
+    
+    powerUpSettings.shieldModel = model;
+    // console.log("Shield power-up model loaded");
+  }, undefined, (error) => {
+    // console.error("Error loading shield model:", error);
+    // Create fallback model
+    powerUpSettings.shieldModel = createFallbackShieldModel();
+  });
+}
+
+// Create fallback models in case 3D models fail to load
+function createFallbackHealthModel() {
+  const group = new THREE.Group();
+  
+  // Red sphere
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(2, 16, 16),
+    new THREE.MeshPhongMaterial({
+      color: 0xff0000,
+      emissive: 0xff0000,
+      emissiveIntensity: 0.5
+    })
+  );
+  group.add(sphere);
+  
+  // Red cross (vertical)
+  const vertical = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 2, 0.5),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  group.add(vertical);
+  
+  // Red cross (horizontal)
+  const horizontal = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 0.5, 0.5),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  group.add(horizontal);
+  
+  return group;
+}
+
+function createFallbackShieldModel() {
+  const group = new THREE.Group();
+  
+  // Blue sphere
+  const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(1.5, 16, 16),
+    new THREE.MeshPhongMaterial({
+      color: 0x00aaff,
+      emissive: 0x0088ff,
+      emissiveIntensity: 0.5
+    })
+  );
+  group.add(sphere);
+  
+  // Shield rings
+  const ring1 = new THREE.Mesh(
+    new THREE.TorusGeometry(2, 0.2, 16, 32),
+    new THREE.MeshBasicMaterial({ color: 0x00aaff })
+  );
+  ring1.rotation.x = Math.PI / 2;
+  group.add(ring1);
+  
+  const ring2 = new THREE.Mesh(
+    new THREE.TorusGeometry(2, 0.2, 16, 32),
+    new THREE.MeshBasicMaterial({ color: 0x00aaff })
+  );
+  ring2.rotation.y = Math.PI / 2;
+  group.add(ring2);
+  
+  return group;
+}
+
+// Spawn a power-up
+function spawnPowerUp(currentTime) {
+
+  if (!shuttle) return;
+  
+  // Check if we should attempt to spawn
+  if (currentTime - powerUpSettings.lastSpawnTime < powerUpSettings.spawnRate) return;
+  powerUpSettings.lastSpawnTime = currentTime;
+  
+  // Check if we're at the maximum number of power-ups
+  if (powerUps.length >= powerUpSettings.maxPowerUps) return;
+  
+  // Random chance to spawn
+  if (Math.random() > powerUpSettings.spawnChance) return;
+  
+  // Choose a power-up type
+  const type = Math.random() > 0.8 ? powerUpTypes.HEALTH : powerUpTypes.SHIELD;
+  
+  // Get the appropriate model
+  let powerUpModel;
+  if (type === powerUpTypes.HEALTH) {
+    if (!powerUpSettings.healthModel) {
+      // console.warn("Health model not loaded yet, skipping spawn");
+      return;
+    }
+    powerUpModel = powerUpSettings.healthModel.clone();
+    powerUpModel.userData = {
+      type: type,
+      rotationSpeed: 0.01 + Math.random() * 0.02,
+      bobSpeed: 0.5 + Math.random() * 0.5,
+      bobHeight: 0.2 + Math.random() * 0.3,
+      originalY: powerUpModel.position.y,
+      spawnTime: currentTime
+    };
+  } else {
+    if (!powerUpSettings.shieldModel) {
+      // console.warn("Shield model not loaded yet, skipping spawn");
+      return;
+    }
+    powerUpModel = powerUpSettings.shieldModel.clone();
+    powerUpModel.userData = {
+      type: type,
+      rotationSpeed: 0.01 + Math.random() * 0.02,
+      bobSpeed: 0.5 + Math.random() * 0.5,
+      bobHeight: 0.2 + Math.random() * 0.3,
+      originalY: powerUpModel.position.y,
+      spawnTime: currentTime
+    };
+  }
+  
+  // Position in front of the shuttle but off to the side
+  const offsetX = (Math.random() - 0.5) * 100;
+  const offsetY = (Math.random() - 0.5) * 100;
+  const offsetZ = -500// Always ahead
+  
+  powerUpModel.position.copy(shuttle.position)
+    .add(new THREE.Vector3(offsetX, offsetY, offsetZ));
+  
+  // Add metadata
+  
+  // Add target indicator rings
+  addTargetIndicator(powerUpModel, type);
+  
+  // Add to scene and array
+  scene.add(powerUpModel);
+  powerUps.push(powerUpModel);
+  
+  // console.log(`Spawned ${type} power-up`);
+}
+
+// Add target indicator to make it clear the power-up should be shot
+function addTargetIndicator(powerUp, type) {
+  const color = type === powerUpTypes.HEALTH ? 0xff0000 : 0x00aaff;
+  
+  // Create three rings at different orientations
+  for (let i = 0; i < 3; i++) {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(3, 3.5, 32),
+      new THREE.MeshBasicMaterial({
+        color: color,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.7
+      })
+    );
+    
+    if (i === 0) ring.rotation.x = Math.PI / 2;
+    else if (i === 1) ring.rotation.y = Math.PI / 2;
+    
+    powerUp.add(ring);
+    
+    // Store reference for animation
+    if (!powerUp.userData.rings) powerUp.userData.rings = [];
+    powerUp.userData.rings.push(ring);
+  }
+}
+
+
+// Update power-ups (movement, animation, etc.)
+function updatePowerUps(deltaTime, currentTime) {
+  for (let i = powerUps.length - 1; i >= 0; i--) {
+    const powerUp = powerUps[i];
+    
+    // Rotate the power-up
+    powerUp.rotation.y += powerUp.userData.rotationSpeed;
+    
+    // Bob up and down
+    const bobOffset = Math.sin(currentTime * 0.001 * powerUp.userData.bobSpeed) * powerUp.userData.bobHeight;
+    powerUp.position.y = powerUp.userData.originalY + bobOffset;
+    
+    // Animate target rings
+    if (powerUp.userData.rings) {
+      const ringScale = 1 + 0.2 * Math.sin(currentTime * 0.002);
+      powerUp.userData.rings.forEach(ring => {
+        ring.scale.set(ringScale, ringScale, ringScale);
+      });
+    }
+    
+    // Move power-up at the same speed as the shuttle moves forward
+    // This makes it appear stationary in the world
+    if (shuttle) {
+      powerUp.position.z += shuttleSpeed * deltaTime;
+    }
+    
+    // Remove if too far behind the shuttle
+    if (shuttle && powerUp.position.z > shuttle.position.z + 50) {
+      scene.remove(powerUp);
+      powerUps.splice(i, 1);
+    }
+  }
+}
+
+// Collect a power-up
+function collectPowerUp(powerUp) {
+  const type = powerUp.userData.type;
+  
+  // Create collection effect
+  createPowerUpCollectionEffect(powerUp.position.clone(), type);
+  
+  // Play sound effect
+  if (type === powerUpTypes.HEALTH) {
+    if (window.healthPickupSound) healthPickupSound.play();
+  } else {
+    if (window.shieldPickupSound) shieldPickupSound.play();
+  }
+  
+  // Apply power-up effect
+  if (type === powerUpTypes.HEALTH) {
+    // Health boost
+    shuttleHealth = Math.min(shuttleHealth + powerUpSettings.healthBoost, 100);
+    updateHealthDisplay();
+    showMessage('Health Restored! +25', '#ff5555');
+  } else {
+    // Shield activation
+    activateShield();
+    showMessage('Radiation Shield Activated!', '#55aaff');
+  }
+}
+
+// Create visual effect when collecting a power-up
+function createPowerUpCollectionEffect(position, type) {
+  // Set color based on power-up type
+  const color = type === powerUpTypes.HEALTH ? 0xff5555 : 0x55aaff;
+  
+  // Create particles
+  const particleCount = 30;
+  const geometry = new THREE.BufferGeometry();
+  const vertices = [];
+  
+  for (let i = 0; i < particleCount; i++) {
+    vertices.push(
+      (Math.random() - 0.5) * 2, // x
+      (Math.random() - 0.5) * 2, // y
+      (Math.random() - 0.5) * 2  // z
+    );
+  }
+  
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  
+  const material = new THREE.PointsMaterial({
+    color: color,
+    size: 0.5,
+    transparent: true,
+    opacity: 1
+  });
+  
+  const particles = new THREE.Points(geometry, material);
+  particles.position.copy(position);
+  scene.add(particles);
+  
+  // Add a flash light
+  const flash = new THREE.PointLight(color, 5, 30);
+  flash.position.copy(position);
+  scene.add(flash);
+  
+  // Animate particles outward
+  const startTime = performance.now();
+  const duration = 1000; // 1 second
+  
+  function animateParticles() {
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Scale particles outward
+    particles.scale.set(1 + progress * 8, 1 + progress * 8, 1 + progress * 8);
+    
+    // Fade out
+    particles.material.opacity = 1 - progress;
+    
+    // Fade out the light
+    if (progress > 0.3) {
+      flash.intensity = 5 * (1 - (progress - 0.3) / 0.7);
+    }
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateParticles);
+    } else {
+      scene.remove(particles);
+      scene.remove(flash);
+      geometry.dispose();
+      material.dispose();
+    }
+  }
+  
+  requestAnimationFrame(animateParticles);
+}
+
+
+// Activate the shield
+function activateShield() {
+  shieldActive = true;
+  shieldEndTime = performance.now() + powerUpSettings.shieldDuration;
+  
+  // Create shield mesh if it doesn't exist
+  if (!shieldMesh) {
+    const geometry = new THREE.SphereGeometry(4, 25, 25);
+    const material = new THREE.MeshPhongMaterial({
+      color: 0x00aaff,
+      transparent: true,
+      opacity: 0.1,
+      emissive: 0x0088ff,
+      emissiveIntensity: 0.5,
+      side: THREE.DoubleSide
+    });
+    
+    shieldMesh = new THREE.Mesh(geometry, material);
+    shuttle.add(shieldMesh);
+  }
+  
+  // Make shield visible
+  shieldMesh.visible = true;
+  
+  // Update health display to show shield status
+  updateHealthDisplay();
+}
+
+
+// Update shield status
+function updateShield(currentTime) {
+  if (!shieldActive) return;
+  
+  // Check if shield has expired
+  if (currentTime > shieldEndTime) {
+    shieldActive = false;
+    
+    // Hide shield mesh
+    if (shieldMesh) {
+      shieldMesh.visible = false;
+    }
+    
+    // Update health display to remove shield indicator
+    updateHealthDisplay();
+    
+    // Show message
+    showMessage('Shield Deactivated', '#ffffff');
+    return;
+  }
+  
+  // Animate shield
+  if (shieldMesh) {
+    // Pulse effect
+    const pulseIntensity = 0.3 + 0.2 * Math.sin(currentTime * 0.003);
+    shieldMesh.material.emissiveIntensity = pulseIntensity;
+    
+    // Rotation effect
+    shieldMesh.rotation.y += 0.01;
+    shieldMesh.rotation.z += 0.005;
+  }
+  
+  // Show countdown if shield is about to expire (last 3 seconds)
+  const timeLeft = Math.ceil((shieldEndTime - currentTime) / 1000);
+  if (timeLeft <= 3 && timeLeft > 0 && Math.floor(currentTime / 1000) !== Math.floor((currentTime - 16) / 1000)) {
+    showMessage(`Shield: ${timeLeft}s`, '#00aaff');
+  }
+}
+
+
 
 function updateAiming() {
   if (!shuttle) return;
@@ -564,6 +988,7 @@ function detectCollisions() {
   // Track which objects to remove
   const missilesToRemove = [];
   const asteroidsToRemove = [];
+  const powerUpsToCollect = [];
   let scoreChanged = false;
 
   // Check all missile-asteroid collisions using center-to-center distance
@@ -572,6 +997,27 @@ function detectCollisions() {
     
     // Skip if this missile is already marked for removal
     if (missilesToRemove.includes(m)) continue;
+
+    // Check missile-powerup collisions FIRST
+    for (let p = 0; p < powerUps.length; p++) {
+      const powerUp = powerUps[p];
+      
+      // Use a generous collision radius for power-ups
+      const collisionRadius = 5; // Adjust as needed
+      const distance = missile.position.distanceTo(powerUp.position);
+      
+      if (distance < collisionRadius) {
+        // Mark missile for removal and power-up for collection
+        missilesToRemove.push(m);
+        // powerUpsToCollect.push(p);
+        collectPowerUp(powerUp);
+        scene.remove(powerUp);
+        powerUps.splice(p, 1);  
+        
+        // Break inner loop - one missile hits one power-up
+        break;
+      }
+    }
     
     for (let a = 0; a < asteroids.length; a++) {
       const asteroid = asteroids[a];
@@ -638,6 +1084,22 @@ function detectCollisions() {
         break; // Break inner loop after collision
       }
     }
+  }
+
+  
+  // Process power-ups that were hit (in reverse order to maintain correct indices)
+  for (let i = powerUpsToCollect.length - 1; i >= 0; i--) {
+    console.log("count: ",powerUpsToCollect.length);
+
+    const index = powerUpsToCollect[i];
+    const powerUp = powerUps[index];
+    console.log("Powerup: ",powerUp);
+    // Apply power-up effect
+    collectPowerUp(powerUp);
+    
+    // Remove from scene and array
+    scene.remove(powerUp);
+    powerUps.splice(index, 1);
   }
   
   // Remove missiles (in reverse order to maintain correct indices)
@@ -1040,6 +1502,12 @@ function resetGame() {
   // Reset score
   score = 0;
   shuttleHealth = 100;
+  shieldActive = false;
+  shieldEndTime = 0;
+  if (shieldMesh) {
+    shieldMesh.visible = false;
+  }
+
   gameActive = true;
   gamePaused = false;
   updateScoreDisplay();
@@ -1062,6 +1530,10 @@ function resetGame() {
   // Clear all UFOs
   ufos.forEach(u => scene.remove(u));
   ufos.length = 0;
+
+  // Reset power-ups
+  powerUps.forEach(p => scene.remove(p));
+  powerUps.length=0;
   
   // Create new asteroids
   createAsteroids();
@@ -1168,11 +1640,18 @@ function animate() {
     updateShuttle();
     updateAsteroids(deltaTime);
     updateMissiles(deltaTime);
+
+    updatePowerUps(deltaTime, currentTime); // Update power-ups
+    
+    updateShield(currentTime); // Update shield
+    spawnPowerUp(currentTime);
   
     updateAiming();
 
     updateUfos(deltaTime, currentTime); // Add this line
     // updateUfoProjectiles(deltaTime); // Add this line too
+
+    // Reset power-up spawn timer
 
     detectCollisions();
   }
@@ -1186,6 +1665,7 @@ loadGoal();
 loadShuttle();
 loadAsteroids();
 loadUfoModel();
+loadPowerUpModels();
 createHealthDisplay();
 animate();
 
@@ -1386,12 +1866,13 @@ function emitRadiation(ufo) {
     
     // Visual feedback for radiation damage
     shuttle.traverse(child => {
-      if (child.isMesh) {
+      if (child.isMesh && !shieldMesh.visible) {
+        console.log("Applying radiation damage to:", child.name);
         child.userData.originalMaterial = child.material;
         child.material = new THREE.MeshBasicMaterial({
           color: 0x00ff00, // Green for radiation
           transparent: true,
-          opacity: 0.7
+          opacity: 0.1
         });
       }
     });
@@ -1733,4 +2214,44 @@ function updateHealthDisplay() {
       healthFill.style.backgroundColor = '#f44336'; // Red
     }
   }
+}
+
+
+// Show a temporary message on screen
+function showMessage(text, color = '#ffffff', duration = 2000) {
+  // Create message element if it doesn't exist
+  let messageElement = document.getElementById('game-message');
+  if (!messageElement) {
+    messageElement = document.createElement('div');
+    messageElement.id = 'game-message';
+    messageElement.style.position = 'absolute';
+    messageElement.style.top = '20%';
+    messageElement.style.left = '50%';
+    messageElement.style.transform = 'translate(-50%, -50%)';
+    messageElement.style.fontSize = '24px';
+    messageElement.style.fontWeight = 'bold';
+    messageElement.style.textAlign = 'center';
+    messageElement.style.textShadow = '0 0 5px #000';
+    messageElement.style.zIndex = '1000';
+    messageElement.style.opacity = '0';
+    messageElement.style.transition = 'opacity 0.3s';
+    document.body.appendChild(messageElement);
+  }
+  
+  // Clear any existing timeout
+  if (messageElement.timeoutId) {
+    clearTimeout(messageElement.timeoutId);
+  }
+  
+  // Set message content
+  messageElement.textContent = text;
+  messageElement.style.color = color;
+  
+  // Show message with fade in
+  messageElement.style.opacity = '1';
+  
+  // Hide message after duration
+  messageElement.timeoutId = setTimeout(() => {
+    messageElement.style.opacity = '0';
+  }, duration);
 }
