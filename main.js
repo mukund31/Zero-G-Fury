@@ -1905,8 +1905,8 @@ function gameOver(success) {
   
   // Restart button (same difficulty)
   const restartButton = document.createElement('button');
-  restartButton.className = 'difficulty-btn';
-  restartButton.innerHTML = '<span class="difficulty-name" id="restart-btn">Restart</span><span class="difficulty-desc">Same difficulty</span>';
+  restartButton.className = 'restart-btn';
+  restartButton.innerHTML = '<span class="difficulty-name">Restart</span><span class="difficulty-desc">Same difficulty</span>';
   restartButton.addEventListener('click', () => {
     document.body.removeChild(gameOverScreen);
     resetGame();
@@ -1914,7 +1914,7 @@ function gameOver(success) {
   
   // Change difficulty button
   const changeDifficultyButton = document.createElement('button');
-  changeDifficultyButton.className = 'difficulty-btn';
+  changeDifficultyButton.className = 'change-diff-btn';
   changeDifficultyButton.innerHTML = '<span class="difficulty-name">Change Difficulty</span><span class="difficulty-desc">Select a new difficulty level</span>';
   changeDifficultyButton.addEventListener('click', () => {
     document.body.removeChild(gameOverScreen);
