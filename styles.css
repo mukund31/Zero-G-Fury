@@ -641,8 +641,9 @@ body {
 }
 
 .difficulty-desc {
-  font-size: 0.875rem;
+  font-size: 1rem;
   opacity: 0.8;
+  font-weight: 700;
 }
 
 #easy-btn {

@@ -307,7 +307,7 @@ function selectDifficulty(difficulty) {
   let message, color;
   switch(difficulty) {
     case 'easy':
-      message = 'Easy Mode: Good luck on your delivery!';
+      message = 'Easy Mode: Good luck!';
       color = '#88ff88';
       break;
     case 'medium':
@@ -315,7 +315,7 @@ function selectDifficulty(difficulty) {
       color = '#ffcc66';
       break;
     case 'hard':
-      message = 'Hard Mode: Only the best survive!';
+      message = 'Hard Mode: Brace yourself—only legends survive!';
       color = '#ff6666';
       break;
   }
