@@ -731,6 +731,8 @@ body {
 
   .difficulty-btn {
     padding: 0.75rem;
+    flex-direction: row;
+    justify-content: space-between;
   }
 
   .pause-resume-btn {
