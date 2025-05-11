@@ -1962,6 +1962,11 @@ function showPauseMenu() {
   if (document.getElementById('pause-menu')) return;
   
   gamePaused = true;
+
+  // Pause all looping sounds
+  if (audioSystem.playing['heartbeat']) {
+    audioSystem.fadeOut('heartbeat', 300);
+  }
   
   // Create pause menu
   const pauseMenu = document.createElement('div');
@@ -2182,6 +2187,8 @@ function animate() {
     
     updateShield(currentTime); // Update shield
     spawnPowerUp(currentTime);
+
+    updateHeartbeatSound();
   
     updateAiming();
 
@@ -2253,6 +2260,7 @@ const shootSound = new THREE.Audio(listener);
 const asteroidExplosionSound = new THREE.Audio(listener);
 const ufoExplosionSound = new THREE.Audio(listener);
 const healthDamageSound = new THREE.Audio(listener);
+const heartBeatSound = new THREE.Audio(listener);
 
 // Load background music
 // audioLoader.load('assets/Sounds/spaceSound1.mp3', function(buffer) {
@@ -2287,6 +2295,12 @@ audioLoader.load('assets/Sounds/ufoExplosion.mp3', function(buffer) {
 audioLoader.load('assets/Sounds/healthDamageSound.mp3', function(buffer) {
   healthDamageSound.setBuffer(buffer);
   healthDamageSound.setVolume(0.3);
+});
+
+// Load Heart Beat sound
+audioLoader.load('assets/Sounds/heartbeatSound.mp3', function(buffer) {
+  heartBeatSound.setBuffer(buffer);
+  heartBeatSound.setVolume(0.3);
 });
 
 
@@ -2733,4 +2747,33 @@ function showMessage(text, color = '#ffffff', duration = 1500) {
   messageElement.timeoutId = setTimeout(() => {
     messageElement.style.opacity = '0';
   }, duration);
+}
+
+
+// Manage heartbeat sound based on health
+function updateHeartbeatSound() {
+  if (!shuttle) return;
+  
+  const healthPercentage = shuttleHealth
+  
+  if (healthPercentage <= 30) {
+    // Start or adjust heartbeat sound
+    if (!heartBeatSound.isPlaying) heartBeatSound.play();
+    // shootSound.play();
+    
+    // Adjust volume and rate based on health percentage
+    // Lower health = louder and faster heartbeat
+    if (heartBeatSound.isPlaying) {
+      // Volume increases as health decreases (0.3 to 0.8)
+      const volume = 0.3 + ((30 - healthPercentage) / 30) * 0.5;
+      heartBeatSound.volume = volume;
+      
+      // Playback rate increases as health decreases (0.8 to 1.5)
+      const playbackRate = 0.8 + ((30 - healthPercentage) / 30) * 0.7;
+      heartBeatSound.playbackRate = playbackRate;
+    }
+  } else {
+    // Stop heartbeat if health is above 30%
+    if (heartBeatSound.isPlaying) heartBeatSound.stop();
+  }
 }
