@@ -214,7 +214,7 @@ const leaderboardSystem = {
       // Initialize Firebase
       firebase.initializeApp(this.firebaseConfig);
       this.db = firebase.firestore();
-      console.log("Firebase initialized");
+      // console.log("Firebase initialized");
     } catch(error) {
       console.error("Error initializing Firebase:", error);
     }
@@ -224,9 +224,9 @@ const leaderboardSystem = {
     if (storedName) {
       this.playerName = storedName;
       this.isGuest = false;
-      console.log(`Player logged in as: ${this.playerName}`);
+      // console.log(`Player logged in as: ${this.playerName}`);
     } else {
-      console.log("Playing as guest");
+      // console.log("Playing as guest");
     }
   },
   
@@ -308,7 +308,7 @@ const leaderboardSystem = {
         this.playerName = name;
         this.isGuest = false;
         localStorage.setItem('asteroidGamePlayerName', name);
-        console.log(`Player name set to: ${name}`);
+        // console.log(`Player name set to: ${name}`);
       }
       document.body.removeChild(nameScreen);
       showDifficultyScreen();
@@ -321,7 +321,7 @@ const leaderboardSystem = {
       this.playerName = null;
       this.isGuest = true;
       localStorage.removeItem('asteroidGamePlayerName');
-      console.log("Playing as guest");
+      // console.log("Playing as guest");
       document.body.removeChild(nameScreen);
       showDifficultyScreen();
     });
@@ -344,12 +344,12 @@ const leaderboardSystem = {
   // Submit score to leaderboard
   submitScore: async function(score, difficulty) {
     if (this.isGuest || !this.playerName) {
-      console.log("Guest player, not submitting score");
+      // console.log("Guest player, not submitting score");
       return { qualified: false };
     }
     
     try {
-      console.log(`Submitting score: ${score} on ${difficulty} difficulty`);
+      // console.log(`Submitting score: ${score} on ${difficulty} difficulty`);
       
       // Add the score to Firestore
       const docRef = await this.db.collection('leaderboard').add({
@@ -359,7 +359,7 @@ const leaderboardSystem = {
         date: firebase.firestore.Timestamp.now()
       });
       
-      console.log(`Score submitted with ID: ${docRef.id}`);
+      // console.log(`Score submitted with ID: ${docRef.id}`);
       
       // Get the leaderboard to determine rank
       const leaderboardSnapshot = await this.db.collection('leaderboard')
@@ -376,7 +376,7 @@ const leaderboardSystem = {
         if (rank <= 10) qualified = true;
       });
       
-      console.log(`Score rank: ${rank}, qualified for top 10: ${qualified}`);
+      // console.log(`Score rank: ${rank}, qualified for top 10: ${qualified}`);
       
       return { qualified, rank, id: docRef.id };
     } catch (error) {
@@ -388,7 +388,7 @@ const leaderboardSystem = {
   // Fetch leaderboard data
   fetchLeaderboard: async function(difficulty = null) {
     try {
-      console.log(`Fetching leaderboard for difficulty: ${difficulty || 'all'}`);
+      // console.log(`Fetching leaderboard for difficulty: ${difficulty || 'all'}`);
       
       let query = this.db.collection('leaderboard')
         .orderBy('score', 'desc')
@@ -416,7 +416,7 @@ const leaderboardSystem = {
         });
       });
       
-      console.log(`Fetched ${leaderboard.length} leaderboard entries`);
+      // console.log(`Fetched ${leaderboard.length} leaderboard entries`);
       return leaderboard;
     } catch (error) {
       console.error("Error fetching leaderboard:", error);
@@ -431,7 +431,7 @@ const leaderboardSystem = {
     }
     
     try {
-      console.log(`Fetching stats for player: ${this.playerName}`);
+      // console.log(`Fetching stats for player: ${this.playerName}`);
       
       const snapshot = await this.db.collection('leaderboard')
         .where('playerName', '==', this.playerName)
@@ -463,7 +463,7 @@ const leaderboardSystem = {
         stats[i].rank = rankSnapshot.size + 1;
       }
       
-      console.log(`Fetched ${stats.length} player stats`);
+      // console.log(`Fetched ${stats.length} player stats`);
       return stats;
     } catch (error) {
       console.error("Error fetching player stats:", error);
@@ -1086,7 +1086,7 @@ document.addEventListener('keydown', (e) => {
   } else if (e.key === 'Escape' || e.key === 'P' || e.key === 'p') {
     // Toggle pause menu
     if (gamePaused && document.getElementById('pause-screen')) {
-      console.log('Pause key pressed');
+      // console.log('Pause key pressed');
       // If game is paused and menu is showing, resume
       document.body.removeChild(document.getElementById('pause-screen'));
       gamePaused = false;
