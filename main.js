@@ -69,6 +69,7 @@ let highlightedAsteroid = null;
 
 // === UFO ENEMY SYSTEM ===
 let ufos = [];
+const MAX_UFOS = 3;
 let ufoSpawnInterval = 7000; // Spawn a UFO every 7 seconds
 let lastUfoSpawnTime = 0;
 let ufoModel = null;
@@ -3064,6 +3065,18 @@ function loadUfoModel() {
 
 function spawnUfo() {
   if (!ufoModel || !shuttle) return;
+
+  // If we already have MAX_UFOS, remove the oldest one
+  if (ufos.length >= MAX_UFOS) {
+    // Sort UFOs by creation time
+    ufos.sort((a, b) => a.userData.creationTime - b.userData.creationTime);
+    
+    // Remove the oldest UFO
+    const oldestUFO = ufos.shift(); // Remove and get the first (oldest) UFO
+    // createExplosion(oldestUFO.position, 0x00ffff, 1.5);
+    scene.remove(oldestUFO);
+    console.log("Oldest UFO automatically destroyed to make room for new one");
+  }
   
   // Clone the UFO model
   const ufo = ufoModel.clone();
