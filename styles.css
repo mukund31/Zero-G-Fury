@@ -931,3 +931,333 @@ body {
   outline: 2px solid #4fc3f7;
   outline-offset: 3px;
 }
+
+
+/* Container and layout */
+.main-menu-content {
+  max-width: 500px;
+  margin: 10vh auto;
+  padding: 30px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Title and subtitle */
+.main-title {
+  font-size: 3rem;
+  color: #4fc3f7;
+  text-shadow: 0 0 10px rgba(79, 195, 247, 0.7);
+  margin: 0;
+}
+
+.main-subtitle {
+  font-size: 1.1rem;
+  color: #aaa;
+  margin-bottom: 20px;
+}
+
+/* Button container and individual buttons */
+.main-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+}
+
+.menu-button {
+  background-color: rgba(40, 60, 100, 0.8);
+  border: 2px solid rgba(100, 150, 255, 0.5);
+  box-shadow: 0 0 30px rgba(0, 150, 255, 0.5);
+  border-radius: 10px;
+  padding: 1rem;
+  width: 100%;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.5rem;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.menu-button:hover {
+  background-color: rgba(60, 100, 180, 0.8);
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(100, 150, 255, 0.7);
+}
+
+.menu-button:active {
+  transform: scale(0.98);
+}
+
+.menu-button:focus {
+  outline: 2px solid #4fc3f7;
+  outline-offset: 3px;
+}
+
+/* Player section */
+.player-section {
+  margin-top: 30px;
+  font-size: 1rem;
+  color: #aaa;
+}
+
+.welcome-message {
+  margin-bottom: 10px;
+}
+
+.change-name-button {
+  padding: 6px 12px;
+  background-color: transparent;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+  color: #aaa;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.change-name-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .main-title {
+    font-size: 2.2rem;
+  }
+
+  .main-subtitle {
+    font-size: 1rem;
+  }
+
+  .main-menu-content {
+    padding: 20px;
+  }
+}
+
+
+@media screen and ((max-width: 768px) and (min-width: 601px)) {
+  .main-menu-content {
+    gap: 10px;
+  }
+  
+  #main-menu-screen {
+    max-height: 80%;
+  }
+  .main-menu-content {
+    padding: 10px;
+  }
+
+  .main-subtitle {
+    /* display: none; */
+    margin: 0;
+  }
+
+  .menu-button {
+    padding: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .change-name-button {
+    padding: 5px 10px;
+  } 
+  
+}
+
+/* Instructions screen layout */
+.instructions-content {
+  max-width: 600px;
+  margin: 10vh auto;
+  padding: 30px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+  text-align: left;
+  color: #fff;
+}
+
+/* Title */
+.instructions-title {
+  text-align: center;
+  font-size: 2.2rem;
+  margin-bottom: 25px;
+  color: #4fc3f7;
+  text-shadow: 0 0 8px rgba(79, 195, 247, 0.5);
+}
+
+/* Instruction container */
+.instructions-container {
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Each instruction item */
+.instruction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.instruction-icon {
+  font-size: 1.8rem;
+  min-width: 30px;
+  text-align: center;
+}
+
+.instruction-item-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #4fc3f7;
+}
+
+.instruction-item-text {
+  margin: 5px 0 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #ccc;
+}
+
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .instructions-content {
+    padding: 20px;
+  }
+
+  .instructions-title {
+    font-size: 1.8rem;
+  }
+
+  .instruction-item-title {
+    font-size: 1rem;
+  }
+
+  .instruction-item-text {
+    font-size: 0.9rem;
+  }
+}
+
+
+@media screen and ((max-width: 768px) and (min-width: 601px)) {
+  .how-to-play-btn {
+    display: none;
+  }
+  .leaderboard-btn {
+    /* display: none; */
+  }
+
+  
+  #instructions-screen {
+    padding: 0;
+  }
+  .instructions-title {
+    margin: 0px;
+    font-size: 2.2rem;
+  }
+  .instructions-container {
+    padding: 10px;
+    margin: 0;
+    gap: 5px;
+  }
+  .instruction-icon {
+    font-size: 1rem;
+    min-width: 10px;
+  }
+
+  .instruction-item-title {
+    font-size: 0.8rem;
+  } 
+  .instruction-item-text {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+}
+
+/* Difficulty screen container */
+#difficulty-screen .screen-content {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(79, 195, 247, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Title */
+#difficulty-screen h2 {
+  font-size: 2rem;
+  color: #4fc3f7;
+  text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+/* Button container */
+.difficulty-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+/* Back button styling */
+.back-btn {
+  border-color: #aaa;
+  color: #aaa;
+}
+
+.back-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: #ccc;
+}
+
+/* Responsive behavior */
+@media (max-width: 600px) {
+  #difficulty-screen .screen-content {
+    padding: 30px 15px;
+  }
+
+  .difficulty-btn {
+    font-size: 0.95rem;
+    padding: 14px 16px;
+  }
+  
+  .difficulty-name {
+    font-size: 1.1rem;
+  }
+  
+  .difficulty-desc {
+    font-size: 0.85rem;
+  }
+}
+
+@media screen and ((max-width: 768px) and (min-width: 601px)) {
+  #difficulty-screen h2 {
+    margin-bottom: 5px;
+  }
+  
+  .difficulty-buttons {
+    gap: 10px;
+  }
+
+  .difficulty-btn {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}

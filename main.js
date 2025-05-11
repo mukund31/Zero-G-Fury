@@ -194,6 +194,879 @@ const difficultySettings = {
   }
 };
 
+// Firebase Firestore integration for leaderboard
+const leaderboardSystem = {
+  // Your Firebase config - replace with your actual values
+  
+  firebaseConfig: null,
+  db: null,
+  playerName: null,
+  isGuest: true,
+  currentView: 'all', // 'all', 'easy', 'medium', 'hard'
+  
+  // Initialize the leaderboard system
+  init: async function() {
+    // Fetch Firebase config from Netlify function
+    try {
+      const response = await fetch('/.netlify/functions/getFirebaseConfig');
+      this.firebaseConfig = await response.json();
+
+      // Initialize Firebase
+      firebase.initializeApp(this.firebaseConfig);
+      this.db = firebase.firestore();
+      console.log("Firebase initialized");
+    } catch(error) {
+      console.error("Error initializing Firebase:", error);
+    }
+    
+    // Check for stored player name in localStorage
+    const storedName = localStorage.getItem('asteroidGamePlayerName');
+    if (storedName) {
+      this.playerName = storedName;
+      this.isGuest = false;
+      console.log(`Player logged in as: ${this.playerName}`);
+    } else {
+      console.log("Playing as guest");
+    }
+  },
+  
+  // Show player name input screen
+  showNameInputScreen: function() {
+    gamePaused = true;
+    
+    const nameScreen = document.createElement('div');
+    nameScreen.className = 'game-screen';
+    nameScreen.id = 'name-input-screen';
+    
+    const content = document.createElement('div');
+    content.className = 'screen-content';
+
+    // Top-left back button
+    const topBackButton = document.createElement('button');
+    topBackButton.classList.add("back-btn");
+    topBackButton.textContent = '← Back';
+    topBackButton.style.position = 'absolute';
+    // topBackButton.style.display = "none";
+    topBackButton.style.fontFamily = "'Orbitron', sans-serif";
+    topBackButton.style.top = '20px';
+    topBackButton.style.left = '20px';
+    topBackButton.style.padding = '8px 12px';
+    topBackButton.style.backgroundColor = '#4fc3f7';
+    topBackButton.style.border = 'none';
+    topBackButton.style.borderRadius = '4px';
+    topBackButton.style.color = '#000';
+    topBackButton.style.cursor = 'pointer';
+    topBackButton.style.zIndex = '10'; // ensure it's above everything
+
+    topBackButton.addEventListener('click', () => {
+      document.body.removeChild(nameScreen);
+      if (!gameStarted) {
+        showMainMenu();
+      } else {
+        gamePaused = false;
+      }
+    });
+
+    nameScreen.appendChild(topBackButton);
+    
+    const title = document.createElement('h2');
+    title.textContent = 'Enter Your Name';
+    
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Your name will appear on the global leaderboard';
+    subtitle.style.marginBottom = '20px';
+    
+    const inputContainer = document.createElement('div');
+    inputContainer.style.marginBottom = '30px';
+    
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.id = 'player-name-input';
+    nameInput.placeholder = 'Your Name';
+    nameInput.maxLength = 20;
+    nameInput.value = this.playerName || '';
+    nameInput.style.padding = '10px';
+    nameInput.style.fontSize = '18px';
+    nameInput.style.width = '100%';
+    nameInput.style.borderRadius = '5px';
+    nameInput.style.border = '2px solid #4fc3f7';
+    nameInput.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    nameInput.style.color = 'white';
+    
+    inputContainer.appendChild(nameInput);
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.gap = '15px';
+    
+    const submitButton = document.createElement('button');
+    submitButton.className = 'difficulty-btn';
+    submitButton.innerHTML = '<span class="difficulty-name">Submit</span>';
+    submitButton.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      if (name) {
+        this.playerName = name;
+        this.isGuest = false;
+        localStorage.setItem('asteroidGamePlayerName', name);
+        console.log(`Player name set to: ${name}`);
+      }
+      document.body.removeChild(nameScreen);
+      showDifficultyScreen();
+    });
+    
+    const guestButton = document.createElement('button');
+    guestButton.className = 'difficulty-btn';
+    guestButton.innerHTML = '<span class="difficulty-name">Play as Guest</span>';
+    guestButton.addEventListener('click', () => {
+      this.playerName = null;
+      this.isGuest = true;
+      localStorage.removeItem('asteroidGamePlayerName');
+      console.log("Playing as guest");
+      document.body.removeChild(nameScreen);
+      showDifficultyScreen();
+    });
+    
+    buttonContainer.appendChild(submitButton);
+    buttonContainer.appendChild(guestButton);
+    
+    content.appendChild(title);
+    content.appendChild(subtitle);
+    content.appendChild(inputContainer);
+    content.appendChild(buttonContainer);
+    
+    nameScreen.appendChild(content);
+    document.body.appendChild(nameScreen);
+    
+    // Focus the input field
+    setTimeout(() => nameInput.focus(), 100);
+  },
+  
+  // Submit score to leaderboard
+  submitScore: async function(score, difficulty) {
+    if (this.isGuest || !this.playerName) {
+      console.log("Guest player, not submitting score");
+      return { qualified: false };
+    }
+    
+    try {
+      console.log(`Submitting score: ${score} on ${difficulty} difficulty`);
+      
+      // Add the score to Firestore
+      const docRef = await this.db.collection('leaderboard').add({
+        playerName: this.playerName,
+        score: score,
+        difficulty: difficulty,
+        date: firebase.firestore.Timestamp.now()
+      });
+      
+      console.log(`Score submitted with ID: ${docRef.id}`);
+      
+      // Get the leaderboard to determine rank
+      const leaderboardSnapshot = await this.db.collection('leaderboard')
+        .where('difficulty', '==', difficulty)
+        .orderBy('score', 'desc')
+        .get();
+      
+      let rank = 1;
+      let qualified = false;
+      
+      leaderboardSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.score > score) rank++;
+        if (rank <= 10) qualified = true;
+      });
+      
+      console.log(`Score rank: ${rank}, qualified for top 10: ${qualified}`);
+      
+      return { qualified, rank, id: docRef.id };
+    } catch (error) {
+      console.error("Error submitting score:", error);
+      return { error: "Failed to submit score", qualified: false };
+    }
+  },
+  
+  // Fetch leaderboard data
+  fetchLeaderboard: async function(difficulty = null) {
+    try {
+      console.log(`Fetching leaderboard for difficulty: ${difficulty || 'all'}`);
+      
+      let query = this.db.collection('leaderboard')
+        .orderBy('score', 'desc')
+        .limit(10);
+      
+      if (difficulty) {
+        query = this.db.collection('leaderboard')
+          .where('difficulty', '==', difficulty)
+          .orderBy('score', 'desc')
+          .limit(10);
+      }
+      
+      const snapshot = await query.get();
+      const leaderboard = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        // Convert Firestore Timestamp to JS Date
+        const date = data.date ? data.date.toDate() : new Date();
+        
+        leaderboard.push({
+          id: doc.id,
+          ...data,
+          date: date
+        });
+      });
+      
+      console.log(`Fetched ${leaderboard.length} leaderboard entries`);
+      return leaderboard;
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+      return [];
+    }
+  },
+  
+  // Fetch player stats
+  fetchPlayerStats: async function() {
+    if (this.isGuest || !this.playerName) {
+      return null;
+    }
+    
+    try {
+      console.log(`Fetching stats for player: ${this.playerName}`);
+      
+      const snapshot = await this.db.collection('leaderboard')
+        .where('playerName', '==', this.playerName)
+        .orderBy('score', 'desc')
+        .limit(5)
+        .get();
+      
+      const stats = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        // Convert Firestore Timestamp to JS Date
+        const date = data.date ? data.date.toDate() : new Date();
+        
+        stats.push({
+          id: doc.id,
+          ...data,
+          date: date
+        });
+      });
+      
+      // Calculate rank for each score
+      for (let i = 0; i < stats.length; i++) {
+        const rankSnapshot = await this.db.collection('leaderboard')
+          .where('difficulty', '==', stats[i].difficulty)
+          .where('score', '>', stats[i].score)
+          .get();
+        
+        stats[i].rank = rankSnapshot.size + 1;
+      }
+      
+      console.log(`Fetched ${stats.length} player stats`);
+      return stats;
+    } catch (error) {
+      console.error("Error fetching player stats:", error);
+      return null;
+    }
+  },
+  
+  // Show leaderboard screen
+  showLeaderboard: async function() {
+    gamePaused = true;
+    
+    // Create leaderboard screen
+    const leaderboardScreen = document.createElement('div');
+    leaderboardScreen.className = 'game-screen';
+    leaderboardScreen.id = 'leaderboard-screen';
+    
+    const content = document.createElement('div');
+    content.className = 'screen-content';
+
+    // Top-left back button
+    const topBackButton = document.createElement('button');
+    topBackButton.classList.add("back-btn");
+    topBackButton.textContent = '← Back';
+    topBackButton.style.position = 'absolute';
+    topBackButton.style.fontFamily = "'Orbitron', sans-serif";
+    // topBackButton.style.display = "none";
+    topBackButton.style.top = '20px';
+    topBackButton.style.left = '20px';
+    topBackButton.style.padding = '8px 12px';
+    topBackButton.style.backgroundColor = '#4fc3f7';
+    topBackButton.style.border = 'none';
+    topBackButton.style.borderRadius = '4px';
+    topBackButton.style.color = '#000';
+    topBackButton.style.cursor = 'pointer';
+    topBackButton.style.zIndex = '10'; // ensure it's above everything
+
+    topBackButton.addEventListener('click', () => {
+      document.body.removeChild(leaderboardScreen);
+      if (!gameStarted) {
+        showMainMenu();
+      } else {
+        gamePaused = false;
+      }
+    });
+
+    leaderboardScreen.appendChild(topBackButton);
+
+    
+    // Title with trophy icon
+    const titleContainer = document.createElement('div');
+    titleContainer.style.display = 'flex';
+    titleContainer.style.alignItems = 'center';
+    titleContainer.style.justifyContent = 'center';
+    titleContainer.style.marginBottom = '20px';
+    
+    const trophyIcon = document.createElement('span');
+    trophyIcon.textContent = '🏆';
+    trophyIcon.style.fontSize = '32px';
+    trophyIcon.style.marginRight = '10px';
+    
+    const title = document.createElement('h2');
+    title.textContent = 'Global Leaderboard';
+    title.style.margin = '0';
+    
+    titleContainer.appendChild(trophyIcon);
+    titleContainer.appendChild(title);
+    content.appendChild(titleContainer);
+    
+    // Difficulty tabs
+    const tabsContainer = document.createElement('div');
+    tabsContainer.style.display = 'flex';
+    tabsContainer.style.marginBottom = '20px';
+    tabsContainer.style.borderBottom = '2px solid rgba(79, 195, 247, 0.3)';
+    
+    const createTab = (label, value) => {
+      const tab = document.createElement('div');
+      tab.textContent = label;
+      tab.style.padding = '10px 20px';
+      tab.style.cursor = 'pointer';
+      tab.style.borderBottom = '3px solid transparent';
+      tab.style.transition = 'all 0.2s ease';
+      
+      if (this.currentView === value) {
+        tab.style.borderBottom = '3px solid #4fc3f7';
+        tab.style.fontWeight = 'bold';
+      }
+      
+      tab.addEventListener('click', async () => {
+        // Update current view
+        this.currentView = value;
+        
+        // Remove current leaderboard and show new one
+        document.body.removeChild(leaderboardScreen);
+        this.showLeaderboard();
+      });
+      
+      return tab;
+    };
+    
+    const allTab = createTab('All Difficulties', 'all');
+    const easyTab = createTab('Easy', 'easy');
+    const mediumTab = createTab('Medium', 'medium');
+    const hardTab = createTab('Hard', 'hard');
+    
+    tabsContainer.appendChild(allTab);
+    tabsContainer.appendChild(easyTab);
+    tabsContainer.appendChild(mediumTab);
+    tabsContainer.appendChild(hardTab);
+    
+    content.appendChild(tabsContainer);
+    
+    // Loading indicator
+    const loadingContainer = document.createElement('div');
+    loadingContainer.style.textAlign = 'center';
+    loadingContainer.style.padding = '30px';
+    
+    const loadingSpinner = document.createElement('div');
+    loadingSpinner.style.display = 'inline-block';
+    loadingSpinner.style.width = '40px';
+    loadingSpinner.style.height = '40px';
+    loadingSpinner.style.border = '4px solid rgba(79, 195, 247, 0.3)';
+    loadingSpinner.style.borderRadius = '50%';
+    loadingSpinner.style.borderTop = '4px solid #4fc3f7';
+    loadingSpinner.style.animation = 'spin 1s linear infinite';
+    
+    // Add the keyframes for the spinner animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    const loadingText = document.createElement('p');
+    loadingText.textContent = 'Loading leaderboard...';
+    loadingText.style.color = '#4fc3f7';
+    loadingText.style.fontSize = '18px';
+    loadingText.style.marginTop = '15px';
+    
+    loadingContainer.appendChild(loadingSpinner);
+    loadingContainer.appendChild(loadingText);
+    
+    content.appendChild(loadingContainer);
+    
+    leaderboardScreen.appendChild(content);
+    document.body.appendChild(leaderboardScreen);
+    
+    // Fetch leaderboard data based on current view
+    const difficulty = this.currentView !== 'all' ? this.currentView : null;
+    const leaderboardData = await this.fetchLeaderboard(difficulty);
+    
+    // Fetch player stats if not guest
+    let playerStats = null;
+    if (!this.isGuest) {
+      playerStats = await this.fetchPlayerStats();
+    }
+    
+    // Remove loading container
+    content.removeChild(loadingContainer);
+    
+    // Create leaderboard table
+    const leaderboardTable = document.createElement('table');
+    leaderboardTable.style.width = '100%';
+    leaderboardTable.style.borderCollapse = 'collapse';
+    leaderboardTable.style.color = 'white';
+    
+    // Table header
+    const tableHeader = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headerRow.style.backgroundColor = 'rgba(79, 195, 247, 0.2)';
+    
+    const headers = [
+      { text: 'Rank', align: 'center', width: '15%' },
+      { text: 'Player', align: 'left', width: '40%' },
+      { text: 'Score', align: 'center', width: '20%' },
+      { text: 'Difficulty', align: 'center', width: '25%' }
+    ];
+    
+    headers.forEach(header => {
+      const th = document.createElement('th');
+      th.textContent = header.text;
+      th.style.textAlign = header.align;
+      th.style.width = header.width;
+      th.style.padding = '10px';
+      headerRow.appendChild(th);
+    });
+    
+    tableHeader.appendChild(headerRow);
+    leaderboardTable.appendChild(tableHeader);
+    
+    // Table body
+    const tableBody = document.createElement('tbody');
+    
+    if (leaderboardData.length === 0) {
+      const emptyRow = document.createElement('tr');
+      const emptyCell = document.createElement('td');
+      emptyCell.textContent = 'No scores yet. Be the first!';
+      emptyCell.style.padding = '30px 10px';
+      emptyCell.style.textAlign = 'center';
+      emptyCell.colSpan = 4;
+      
+      emptyRow.appendChild(emptyCell);
+      tableBody.appendChild(emptyRow);
+    } else {
+      leaderboardData.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+        
+        // Alternate row colors
+        if (index % 2 === 0) {
+          row.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+        }
+        
+        // Highlight current player
+        if (!this.isGuest && entry.playerName === this.playerName) {
+          row.style.backgroundColor = 'rgba(79, 195, 247, 0.2)';
+          row.style.fontWeight = 'bold';
+        }
+        
+        // Rank cell with medal for top 3
+        const rankCell = document.createElement('td');
+        rankCell.style.textAlign = 'center';
+        rankCell.style.padding = '10px';
+        
+        if (index === 0) {
+          rankCell.innerHTML = '🥇 1';
+          rankCell.style.fontSize = '18px';
+        } else if (index === 1) {
+          rankCell.innerHTML = '🥈 2';
+          rankCell.style.fontSize = '18px';
+        } else if (index === 2) {
+          rankCell.innerHTML = '🥉 3';
+          rankCell.style.fontSize = '18px';
+        } else {
+          rankCell.textContent = index + 1;
+        }
+        
+        // Player name cell
+        const nameCell = document.createElement('td');
+        nameCell.textContent = entry.playerName;
+        nameCell.style.padding = '10px';
+        
+        // Score cell
+        const scoreCell = document.createElement('td');
+        scoreCell.textContent = entry.score;
+        scoreCell.style.textAlign = 'center';
+        scoreCell.style.padding = '10px';
+        
+        // Difficulty cell
+        const difficultyCell = document.createElement('td');
+        difficultyCell.textContent = entry.difficulty;
+        difficultyCell.style.textAlign = 'center';
+        difficultyCell.style.padding = '10px';
+        
+        // Add color based on difficulty
+        if (entry.difficulty === 'easy') {
+          difficultyCell.style.color = '#4caf50';
+        } else if (entry.difficulty === 'medium') {
+          difficultyCell.style.color = '#ff9800';
+        } else if (entry.difficulty === 'hard') {
+          difficultyCell.style.color = '#f44336';
+        }
+        
+        row.appendChild(rankCell);
+        row.appendChild(nameCell);
+        row.appendChild(scoreCell);
+        row.appendChild(difficultyCell);
+        
+        tableBody.appendChild(row);
+      });
+    }
+    
+    leaderboardTable.appendChild(tableBody);
+    content.appendChild(leaderboardTable);
+    
+    // Add player stats section if available
+    if (playerStats && playerStats.length > 0) {
+      const statsContainer = document.createElement('div');
+      statsContainer.style.marginTop = '30px';
+      statsContainer.style.padding = '15px';
+      statsContainer.style.backgroundColor = 'rgba(79, 195, 247, 0.1)';
+      statsContainer.style.borderRadius = '5px';
+      
+      const statsTitle = document.createElement('h3');
+      statsTitle.textContent = 'Your Best Scores';
+      statsTitle.style.margin = '0 0 15px 0';
+      
+      statsContainer.appendChild(statsTitle);
+      
+      // Create mini table for player stats
+      const statsTable = document.createElement('table');
+      statsTable.style.width = '100%';
+      statsTable.style.borderCollapse = 'collapse';
+      
+      // Table header
+      const statsHeader = document.createElement('thead');
+      const statsHeaderRow = document.createElement('tr');
+      statsHeaderRow.style.backgroundColor = 'rgba(79, 195, 247, 0.2)';
+      
+      ['Rank', 'Score', 'Difficulty', 'Date'].forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        th.style.padding = '8px';
+        th.style.textAlign = 'center';
+        th.style.borderBottom = '1px solid rgba(255, 255, 255, 0.2)';
+        statsHeaderRow.appendChild(th);
+      });
+      
+      statsHeader.appendChild(statsHeaderRow);
+      statsTable.appendChild(statsHeader);
+      
+      // Table body
+      const statsBody = document.createElement('tbody');
+      
+      playerStats.forEach((stat, index) => {
+        const row = document.createElement('tr');
+        
+        if (index % 2 === 0) {
+          row.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+        }
+        
+        // Rank cell
+        const rankCell = document.createElement('td');
+        rankCell.textContent = `#${stat.rank}`;
+        rankCell.style.textAlign = 'center';
+        rankCell.style.padding = '8px';
+        
+        // Score cell
+        const scoreCell = document.createElement('td');
+        scoreCell.textContent = stat.score;
+        scoreCell.style.textAlign = 'center';
+        scoreCell.style.padding = '8px';
+        
+        // Difficulty cell
+        const difficultyCell = document.createElement('td');
+        difficultyCell.textContent = stat.difficulty;
+        difficultyCell.style.textAlign = 'center';
+        difficultyCell.style.padding = '8px';
+        
+        // Add color based on difficulty
+        if (stat.difficulty === 'easy') {
+          difficultyCell.style.color = '#4caf50';
+        } else if (stat.difficulty === 'medium') {
+          difficultyCell.style.color = '#ff9800';
+        } else if (stat.difficulty === 'hard') {
+          difficultyCell.style.color = '#f44336';
+        }
+        
+        // Date cell
+        const dateCell = document.createElement('td');
+        const date = new Date(stat.date);
+        dateCell.textContent = date.toLocaleDateString();
+        dateCell.style.textAlign = 'center';
+        dateCell.style.padding = '8px';
+        
+        row.appendChild(rankCell);
+        row.appendChild(scoreCell);
+        row.appendChild(difficultyCell);
+        row.appendChild(dateCell);
+        
+        statsBody.appendChild(row);
+      });
+      
+      statsTable.appendChild(statsBody);
+      statsContainer.appendChild(statsTable);
+      content.appendChild(statsContainer);
+    }
+    
+    // Add date information
+    const dateInfo = document.createElement('p');
+    dateInfo.textContent = `Last updated: ${new Date().toLocaleString()}`;
+    dateInfo.style.fontSize = '12px';
+    dateInfo.style.color = '#aaa';
+    dateInfo.style.textAlign = 'right';
+    dateInfo.style.marginTop = '10px';
+    content.appendChild(dateInfo);
+    
+    // Button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'space-between';
+    buttonContainer.style.marginTop = '20px';
+    
+    // Back button
+    const backButton = document.createElement('button');
+    backButton.className = 'difficulty-btn';
+    backButton.style.flex = '1';
+    backButton.style.marginRight = '10px';
+    backButton.innerHTML = '<span class="difficulty-name">Back to Game</span>';
+    
+    backButton.addEventListener('click', () => {
+      document.body.removeChild(leaderboardScreen);
+      
+      // If we're at the start of the game, show difficulty screen
+      if (!gameStarted) {
+        showDifficultyScreen();
+      } else {
+        // Otherwise, resume game
+        gamePaused = false;
+      }
+    });
+    
+    // Refresh button
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'difficulty-btn';
+    refreshButton.style.flex = '1';
+    refreshButton.style.marginLeft = '10px';
+    refreshButton.innerHTML = '<span class="difficulty-name">Refresh Data</span>';
+    
+    refreshButton.addEventListener('click', () => {
+      // Remove this leaderboard and show a new one
+      document.body.removeChild(leaderboardScreen);
+      this.showLeaderboard();
+    });
+    
+    buttonContainer.appendChild(backButton);
+    buttonContainer.appendChild(refreshButton);
+    content.appendChild(buttonContainer);
+    
+    // If player is guest, show message about creating account
+    if (this.isGuest) {
+      const guestMessage = document.createElement('div');
+      guestMessage.style.marginTop = '20px';
+      guestMessage.style.padding = '10px';
+      guestMessage.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
+      guestMessage.style.borderRadius = '5px';
+      guestMessage.style.textAlign = 'center';
+      
+      const messageText = document.createElement('p');
+      messageText.textContent = 'Playing as guest. Enter your name to save scores to the leaderboard!';
+      messageText.style.margin = '0 0 10px 0';
+      
+      const enterNameButton = document.createElement('button');
+      enterNameButton.textContent = 'Enter Name';
+      enterNameButton.style.padding = '5px 15px';
+      enterNameButton.style.backgroundColor = '#ffc107';
+      enterNameButton.style.border = 'none';
+      enterNameButton.style.borderRadius = '3px';
+      enterNameButton.style.color = 'black';
+      enterNameButton.style.cursor = 'pointer';
+      
+      enterNameButton.addEventListener('click', () => {
+        document.body.removeChild(leaderboardScreen);
+        this.showNameInputScreen();
+      });
+      
+      guestMessage.appendChild(messageText);
+      guestMessage.appendChild(enterNameButton);
+      content.appendChild(guestMessage);
+    }
+  },
+  
+  // Show score submission result
+  showScoreSubmissionResult: function(result, score) {
+    const messageContainer = document.createElement('div');
+    messageContainer.id = 'score-submission-result';
+    messageContainer.style.position = 'fixed';
+    messageContainer.style.top = '50%';
+    messageContainer.style.left = '50%';
+    messageContainer.style.transform = 'translate(-50%, -50%)';
+    messageContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    messageContainer.style.color = 'white';
+    messageContainer.style.padding = '25px';
+    messageContainer.style.borderRadius = '10px';
+    messageContainer.style.textAlign = 'center';
+    messageContainer.style.zIndex = '3000';
+    messageContainer.style.boxShadow = '0 0 30px rgba(0, 150, 255, 0.7)';
+    messageContainer.style.border = '2px solid #4fc3f7';
+    messageContainer.style.minWidth = '350px';
+    messageContainer.style.maxWidth = '500px';
+    
+    // Add animation
+    messageContainer.style.animation = 'fadeInOut 5s ease-in-out';
+    
+    // Add the keyframes for the fadeInOut animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: translate(-50%, -60%); }
+        10% { opacity: 1; transform: translate(-50%, -50%); }
+        90% { opacity: 1; transform: translate(-50%, -50%); }
+        100% { opacity: 0; transform: translate(-50%, -40%); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    const messageIcon = document.createElement('div');
+    messageIcon.style.fontSize = '48px';
+    messageIcon.style.marginBottom = '15px';
+    
+    const messageTitle = document.createElement('h3');
+    messageTitle.style.margin = '0 0 15px 0';
+    messageTitle.style.fontSize = '24px';
+    
+    const messageText = document.createElement('p');
+    messageText.style.margin = '0 0 20px 0';
+    messageText.style.fontSize = '18px';
+    messageText.style.lineHeight = '1.5';
+    
+    // Set content based on result
+    if (result.qualified) {
+      messageIcon.textContent = '🏆';
+      messageTitle.textContent = 'New High Score!';
+      messageTitle.style.color = '#4caf50';
+      
+      if (result.rank <= 3) {
+        let medal = '🥉';
+        if (result.rank === 1) medal = '🥇';
+        else if (result.rank === 2) medal = '🥈';
+        
+        messageText.innerHTML = `Congratulations! Your score of <b>${score}</b> is ranked <b>#${result.rank}</b> ${medal} on the global leaderboard!`;
+      } else {
+        messageText.innerHTML = `Your score of <b>${score}</b> has been added to the global leaderboard at rank <b>#${result.rank}</b>!`;
+      }
+    } else if (result.error) {
+      messageIcon.textContent = '❌';
+      messageTitle.textContent = 'Error';
+      messageTitle.style.color = '#f44336';
+      messageText.textContent = 'There was a problem submitting your score. Please try again later.';
+    } else {
+      messageIcon.textContent = '📊';
+      messageTitle.textContent = 'Score Submitted';
+      messageTitle.style.color = '#ff9800';
+      
+      if (result.rank) {
+        messageText.innerHTML = `Your score of <b>${score}</b> is ranked <b>#${result.rank}</b> overall, but didn't make it to the top 10 leaderboard. Keep trying!`;
+      } else {
+        messageText.textContent = `Your score of ${score} didn't make it to the top 10 leaderboard. Keep trying!`;
+      }
+    }
+    
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'center';
+        buttonContainer.style.gap = '15px';
+    
+    const viewButton = document.createElement('button');
+    viewButton.textContent = 'View Leaderboard';
+    viewButton.style.padding = '10px 20px';
+    viewButton.style.backgroundColor = '#4fc3f7';
+    viewButton.style.color = 'white';
+    viewButton.style.border = 'none';
+    viewButton.style.borderRadius = '5px';
+    viewButton.style.cursor = 'pointer';
+    viewButton.style.fontWeight = 'bold';
+    viewButton.style.transition = 'background-color 0.2s';
+    
+    viewButton.addEventListener('mouseover', () => {
+      viewButton.style.backgroundColor = '#03a9f4';
+    });
+    
+    viewButton.addEventListener('mouseout', () => {
+      viewButton.style.backgroundColor = '#4fc3f7';
+    });
+    
+    viewButton.addEventListener('click', () => {
+      document.body.removeChild(messageContainer);
+      this.showLeaderboard();
+    });
+    
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.style.padding = '10px 20px';
+    closeButton.style.backgroundColor = '#555';
+    closeButton.style.color = 'white';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '5px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.transition = 'background-color 0.2s';
+    
+    closeButton.addEventListener('mouseover', () => {
+      closeButton.style.backgroundColor = '#777';
+    });
+    
+    closeButton.addEventListener('mouseout', () => {
+      closeButton.style.backgroundColor = '#555';
+    });
+    
+    closeButton.addEventListener('click', () => {
+      document.body.removeChild(messageContainer);
+    });
+    
+    buttonContainer.appendChild(viewButton);
+    buttonContainer.appendChild(closeButton);
+    
+    messageContainer.appendChild(messageIcon);
+    messageContainer.appendChild(messageTitle);
+    messageContainer.appendChild(messageText);
+    messageContainer.appendChild(buttonContainer);
+    
+    document.body.appendChild(messageContainer);
+    
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+      if (document.body.contains(messageContainer)) {
+        document.body.removeChild(messageContainer);
+      }
+    }, 8000);
+  }
+};
+
 initGame();
 
 document.addEventListener('mousemove', (event) => {
@@ -212,9 +1085,10 @@ document.addEventListener('keydown', (e) => {
     useShieldBooster();
   } else if (e.key === 'Escape' || e.key === 'P' || e.key === 'p') {
     // Toggle pause menu
-    if (gamePaused && document.getElementById('pause-menu')) {
+    if (gamePaused && document.getElementById('pause-screen')) {
+      console.log('Pause key pressed');
       // If game is paused and menu is showing, resume
-      document.body.removeChild(document.getElementById('pause-menu'));
+      document.body.removeChild(document.getElementById('pause-screen'));
       gamePaused = false;
     } else if (!gamePaused) {
       // If game is running, pause and show menu
@@ -255,36 +1129,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Show the difficulty selection screen
-function showDifficultyScreen() {
-  const difficultyScreen = document.getElementById('difficulty-screen');
-  if (!difficultyScreen) return;
-  
-  // Make sure the screen is visible
-  difficultyScreen.style.display = 'flex';
-  
-  // Add event listeners to buttons
-  document.getElementById('easy-btn').addEventListener('click', () => {
-    selectDifficulty('easy');
-    const pauseButton = document.querySelector('.pause-btn');
-    pauseButton.classList.toggle('paused', gamePaused);
-  });
-  
-  document.getElementById('medium-btn').addEventListener('click', () => {
-    selectDifficulty('medium');
-    const pauseButton = document.querySelector('.pause-btn');
-    pauseButton.classList.toggle('paused', gamePaused);
-  });
-  
-  document.getElementById('hard-btn').addEventListener('click', () => {
-    selectDifficulty('hard');
-    const pauseButton = document.querySelector('.pause-btn');
-    pauseButton.classList.toggle('paused', gamePaused);
-  });
-  
-  // Pause the game if it's running
-  gamePaused = true;
-}
 
 // Select a difficulty and start the game
 function selectDifficulty(difficulty) {
@@ -348,11 +1192,6 @@ function applyDifficultySettings() {
   
 }
 
-// Add this to the end of your script to show the difficulty screen on load
-window.addEventListener('load', () => {
-  // Start by showing the difficulty selection screen
-  showDifficultyScreen();
-});
 
 // Create a visual effect when using a health booster
 function createHealthUseEffect() {
@@ -1957,81 +2796,6 @@ function hidePauseMenu() {
   gamePaused = false;
 }
 
-// Add a pause menu
-function showPauseMenu() {
-  if (document.getElementById('pause-menu')) return;
-  
-  gamePaused = true;
-
-  // Pause all looping sounds
-  if (audioSystem.playing['heartbeat']) {
-    audioSystem.fadeOut('heartbeat', 300);
-  }
-  
-  // Create pause menu
-  const pauseMenu = document.createElement('div');
-  pauseMenu.className = 'game-screen';
-  pauseMenu.id = 'pause-menu';
-  
-  const content = document.createElement('div');
-  content.className = 'screen-content';
-  
-  // Title
-  const title = document.createElement('h1');
-  title.textContent = 'Game Paused';
-  
-  // Create buttons
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.display = 'flex';
-  buttonContainer.style.flexDirection = 'column';
-  buttonContainer.style.gap = '15px';
-  buttonContainer.style.marginTop = '30px';
-  
-  // Resume button
-  const resumeButton = document.createElement('button');
-  resumeButton.className = 'pause-resume-btn';
-  resumeButton.innerHTML = '<span class="difficulty-name">Resume Game</span>';
-  resumeButton.addEventListener('click', () => {
-    document.body.removeChild(pauseMenu);
-    gamePaused = false;
-    const pauseButton = document.querySelector('.pause-btn');
-    pauseButton.classList.toggle('paused', gamePaused);
-  });
-  
-  // Change difficulty button
-  const changeDifficultyButton = document.createElement('button');
-  changeDifficultyButton.className = 'pause-diff-btn';
-  changeDifficultyButton.innerHTML = '<span class="difficulty-name">Change Difficulty</span>';
-  changeDifficultyButton.addEventListener('click', () => {
-    document.body.removeChild(pauseMenu);
-    showDifficultyScreen();
-  });
-  
-  // Restart button
-  const restartButton = document.createElement('button');
-  restartButton.className = 'pause-restart-btn';
-  restartButton.innerHTML = '<span class="difficulty-name">Restart Game</span>';
-  restartButton.addEventListener('click', () => {
-    document.body.removeChild(pauseMenu);
-    resetGame();
-    const pauseButton = document.querySelector('.pause-btn');
-    pauseButton.classList.toggle('paused', gamePaused);
-  });
-  
-  // Add elements to the screen
-  buttonContainer.appendChild(resumeButton);
-  buttonContainer.appendChild(changeDifficultyButton);
-  buttonContainer.appendChild(restartButton);
-  
-  content.appendChild(title);
-  content.appendChild(buttonContainer);
-  
-  pauseMenu.appendChild(content);
-  document.body.appendChild(pauseMenu);
-}
-
-
-
 
 // Create a difficulty indicator for the HUD
 function createDifficultyIndicator() {
@@ -2051,33 +2815,6 @@ function createDifficultyIndicator() {
   
   document.body.appendChild(difficultyIndicator);
 }
-
-// Update the difficulty indicator text and color
-// function updateDifficultyIndicator() {
-//   const indicator = document.getElementById('difficulty-indicator');
-//   if (!indicator) return;
-  
-//   let color, text;
-//   switch(difficultySettings.current) {
-//     case 'easy':
-//       color = '#88ff88';
-//       text = 'EASY';
-//       break;
-//     case 'medium':
-//       color = '#ffcc66';
-//       text = 'MEDIUM';
-//       break;
-//     case 'hard':
-//       color = '#ff6666';
-//       text = 'HARD';
-//       break;
-//   }
-  
-//   indicator.textContent = `Difficulty: ${text}`;
-//   indicator.style.borderLeft = `4px solid ${color}`;
-// }
-
-
 
 
 function resetGame() {
@@ -2215,6 +2952,9 @@ function initGame() {
   createInventoryUI();
   createDifficultyIndicator();
   addStyles();
+  leaderboardSystem.init();
+
+  showMainMenu();
   
   gameInitialized = true;
   animate();
@@ -2471,17 +3211,6 @@ function createRadiationWave(position, currentRadius, maxRadius) {
         // Make shuttle invulnerable briefly
         shuttleInvulnerable = true;
         
-        // Visual feedback for radiation damage
-        shuttle.traverse(child => {
-          if (child.isMesh) {
-            child.userData.originalMaterial = child.material;
-            child.material = new THREE.MeshBasicMaterial({
-              color: 0x00ff00, // Green for radiation
-              transparent: true,
-              opacity: 0.7
-            });
-          }
-        });
         
         // Create a flash effect
         const flash = new THREE.PointLight(0x00ff00, 5, 50);
@@ -2491,7 +3220,7 @@ function createRadiationWave(position, currentRadius, maxRadius) {
         // Remove flash after a short time
         setTimeout(() => {
           scene.remove(flash);
-        }, 200);
+        }, 1000);
         
         // Reset invulnerability after delay
         setTimeout(() => {
@@ -2777,3 +3506,622 @@ function updateHeartbeatSound() {
     if (heartBeatSound.isPlaying) heartBeatSound.stop();
   }
 }
+
+
+// === GAME OVER ===
+function gameOver(success) {
+  gamePaused = true;
+  
+  // Create game over screen
+  const gameOverScreen = document.createElement('div');
+  gameOverScreen.className = 'game-screen';
+  gameOverScreen.id = 'game-over-screen';
+  
+  const content = document.createElement('div');
+  content.className = 'screen-content';
+  
+  // Title with appropriate icon
+  const titleContainer = document.createElement('div');
+  titleContainer.style.display = 'flex';
+  titleContainer.style.alignItems = 'center';
+  titleContainer.style.justifyContent = 'center';
+  titleContainer.style.marginBottom = '20px';
+  
+  const icon = document.createElement('span');
+  icon.textContent = success ? '🎉' : '💥';
+  icon.style.fontSize = '48px';
+  icon.style.marginRight = '15px';
+  
+  const title = document.createElement('h2');
+  title.textContent = success ? 'Mission Complete!' : 'Mission Failed';
+  title.style.margin = '0';
+  title.style.color = success ? '#4caf50' : '#f44336';
+  
+  titleContainer.appendChild(icon);
+  titleContainer.appendChild(title);
+  content.appendChild(titleContainer);
+  
+  // Score display
+  const scoreContainer = document.createElement('div');
+  scoreContainer.style.textAlign = 'center';
+  scoreContainer.style.marginBottom = '30px';
+  
+  const scoreLabel = document.createElement('p');
+  scoreLabel.textContent = 'Your Score:';
+  scoreLabel.style.fontSize = '20px';
+  scoreLabel.style.margin = '0 0 10px 0';
+  
+  const scoreValue = document.createElement('div');
+  scoreValue.textContent = score;
+  scoreValue.style.fontSize = '48px';
+  scoreValue.style.fontWeight = 'bold';
+  scoreValue.style.color = '#4fc3f7';
+  
+  scoreContainer.appendChild(scoreLabel);
+  scoreContainer.appendChild(scoreValue);
+  content.appendChild(scoreContainer);
+  
+  // Message based on result
+  const message = document.createElement('p');
+  if (success) {
+    message.textContent = 'Congratulations! You have successfully completed the mission.';
+  } else {
+    message.textContent = 'Your ship was destroyed. Better luck next time!';
+  }
+  message.style.textAlign = 'center';
+  message.style.marginBottom = '30px';
+  content.appendChild(message);
+  
+  // Button container
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.display = 'flex';
+  buttonContainer.style.flexDirection = 'column';
+  buttonContainer.style.gap = '15px';
+  
+  // Submit score button (only if not guest)
+  if (!leaderboardSystem.isGuest && success) {
+    const submitButton = document.createElement('button');
+    submitButton.className = 'difficulty-btn';
+    submitButton.innerHTML = '<span class="difficulty-name">Submit Score</span>';
+    
+    submitButton.addEventListener('click', async () => {
+      // Disable button to prevent multiple submissions
+      submitButton.disabled = true;
+      submitButton.innerHTML = '<span class="difficulty-name">Submitting...</span>';
+      
+      // Submit score to leaderboard
+      const result = await leaderboardSystem.submitScore(score, currentDifficulty);
+      
+      // Show submission result
+      leaderboardSystem.showScoreSubmissionResult(result, score);
+      
+      // Re-enable button
+      submitButton.disabled = false;
+      submitButton.innerHTML = '<span class="difficulty-name">Submit Score</span>';
+    });
+    
+    buttonContainer.appendChild(submitButton);
+  }
+  
+  // View leaderboard button
+  const leaderboardButton = document.createElement('button');
+  leaderboardButton.className = 'difficulty-btn';
+  leaderboardButton.innerHTML = '<span class="difficulty-name">View Leaderboard</span>';
+  
+  leaderboardButton.addEventListener('click', () => {
+    document.body.removeChild(gameOverScreen);
+    leaderboardSystem.showLeaderboard();
+  });
+  
+  // Play again button
+  const playAgainButton = document.createElement('button');
+  playAgainButton.className = 'difficulty-btn';
+  playAgainButton.innerHTML = '<span class="difficulty-name">Play Again</span>';
+  
+  playAgainButton.addEventListener('click', () => {
+    document.body.removeChild(gameOverScreen);
+    resetGame();
+    gamePaused = false;
+  });
+  
+  // Main menu button
+  const mainMenuButton = document.createElement('button');
+  mainMenuButton.className = 'difficulty-btn';
+  mainMenuButton.innerHTML = '<span class="difficulty-name">Main Menu</span>';
+  
+  mainMenuButton.addEventListener('click', () => {
+    document.body.removeChild(gameOverScreen);
+    resetGame();
+    showMainMenu();
+  });
+  
+  buttonContainer.appendChild(leaderboardButton);
+  buttonContainer.appendChild(playAgainButton);
+  buttonContainer.appendChild(mainMenuButton);
+  
+  content.appendChild(buttonContainer);
+  gameOverScreen.appendChild(content);
+  document.body.appendChild(gameOverScreen);
+}
+
+function showMainMenu() {
+  gamePaused = true;
+  gameStarted = false;
+
+  const menuScreen = document.createElement('div');
+  menuScreen.className = 'game-screen';
+  menuScreen.id = 'main-menu-screen';
+
+  const content = document.createElement('div');
+  content.className = 'screen-content main-menu-content';
+
+  // Title
+  const title = document.createElement('h1');
+  title.textContent = 'Zero-G Fury';
+  title.className = 'main-title';
+
+  // Subtitle
+  const subtitle = document.createElement('p');
+  subtitle.textContent = 'Destroy the asteroids, Beware of alien UFOs!';
+  subtitle.className = 'main-subtitle';
+
+  // Buttons
+  const buttonContainer = document.createElement('div');
+  buttonContainer.className = 'main-menu-buttons';
+
+  const startButton = createMenuButton('Start Game', () => {
+    document.body.removeChild(menuScreen);
+    leaderboardSystem.isGuest ? leaderboardSystem.showNameInputScreen() : showDifficultyScreen();
+  });
+
+  const leaderboardButton = createMenuButton('Leaderboard', () => {
+    document.body.removeChild(menuScreen);
+    leaderboardSystem.showLeaderboard();
+  });
+  leaderboardButton.classList.add("leaderboard-btn");
+  
+  const instructionsButton = createMenuButton('How to Play', () => {
+    document.body.removeChild(menuScreen);
+    showInstructions();
+  });
+  instructionsButton.classList.add("how-to-play-btn");
+
+  buttonContainer.append(startButton, leaderboardButton, instructionsButton);
+
+  // Player Section
+  const playerSection = document.createElement('div');
+  playerSection.className = 'player-section';
+
+  if (!leaderboardSystem.isGuest) {
+    const welcomeMessage = document.createElement('p');
+    welcomeMessage.innerHTML = `Welcome back, <b>${leaderboardSystem.playerName}</b>!`;
+    welcomeMessage.className = 'welcome-message';
+
+    const changeNameButton = document.createElement('button');
+    changeNameButton.textContent = 'Change Name';
+    changeNameButton.className = 'change-name-button';
+    changeNameButton.addEventListener('click', () => {
+      document.body.removeChild(menuScreen);
+      leaderboardSystem.showNameInputScreen();
+    });
+
+    playerSection.append(welcomeMessage, changeNameButton);
+  }
+
+  content.append(title, subtitle, buttonContainer, playerSection);
+  menuScreen.appendChild(content);
+  document.body.appendChild(menuScreen);
+}
+
+// Helper to create styled buttons
+function createMenuButton(text, onClick) {
+  const button = document.createElement('button');
+  button.className = 'menu-button';
+  button.innerHTML = `<span class="button-text">${text}</span>`;
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+
+
+// === DIFFICULTY SELECTION ===
+let currentDifficulty = 'medium';
+
+
+function showDifficultyScreen() {
+  gamePaused = true;
+  
+  const difficultyScreen = document.createElement('div');
+  difficultyScreen.className = 'game-screen';
+  difficultyScreen.id = 'difficulty-screen';
+  
+  const content = document.createElement('div');
+  content.className = 'screen-content';
+  
+  // Title
+  const title = document.createElement('h2');
+  title.textContent = 'Select Difficulty';
+  content.appendChild(title);
+  
+  // Difficulty buttons container
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.className = 'difficulty-buttons';
+  
+  // Helper to create buttons
+  const createButton = (difficulty, name, desc, action) => {
+    const btn = document.createElement('button');
+    btn.className = 'difficulty-btn';
+    btn.innerHTML = `
+      <span class="difficulty-name">${name}</span>
+      <span class="difficulty-desc">${desc}</span>
+    `;
+    btn.addEventListener('click', action);
+    return btn;
+  };
+
+  // Easy button
+  const easyButton = createButton('easy', 'Easy', 'Great for coffee breaks', () => {
+    currentDifficulty = 'easy';
+    document.body.removeChild(difficultyScreen);
+    resetGame();
+    startGame('easy');
+  });
+
+  // Medium button
+  const mediumButton = createButton('medium', 'Medium', 'Keep calm and blast on', () => {
+    currentDifficulty = 'medium';
+    document.body.removeChild(difficultyScreen);
+    resetGame();
+    startGame('medium');
+  });
+
+  // Hard button
+  const hardButton = createButton('hard', 'Hard', "Don't say we didn't warn you", () => {
+    currentDifficulty = 'hard';
+    document.body.removeChild(difficultyScreen);
+    resetGame();
+    startGame('hard');
+  });
+
+  // Back button
+  const backButton = document.createElement('button');
+  backButton.className = 'difficulty-btn back-btn';
+  backButton.innerHTML = `<span class="difficulty-name">Back to Menu</span>`;
+  backButton.addEventListener('click', () => {
+    document.body.removeChild(difficultyScreen);
+    showMainMenu();
+  });
+
+  // Append all buttons
+  buttonsContainer.appendChild(easyButton);
+  buttonsContainer.appendChild(mediumButton);
+  buttonsContainer.appendChild(hardButton);
+  buttonsContainer.appendChild(backButton);
+
+  content.appendChild(title);
+  content.appendChild(buttonsContainer);
+  difficultyScreen.appendChild(content);
+  document.body.appendChild(difficultyScreen);
+}
+
+
+function showInstructions() {
+  gamePaused = true;
+
+  const instructionsScreen = document.createElement('div');
+  instructionsScreen.className = 'game-screen';
+  instructionsScreen.id = 'instructions-screen';
+
+  // Top-left back button
+    const topBackButton = document.createElement('button');
+    topBackButton.classList.add("back-btn");
+    topBackButton.textContent = '← Back';
+    topBackButton.style.position = 'absolute';
+    topBackButton.style.fontFamily = "'Orbitron', sans-serif";
+    // topBackButton.style.display = "none";
+    topBackButton.style.top = '20px';
+    topBackButton.style.left = '20px';
+    topBackButton.style.padding = '8px 12px';
+    topBackButton.style.backgroundColor = '#4fc3f7';
+    topBackButton.style.border = 'none';
+    topBackButton.style.borderRadius = '4px';
+    topBackButton.style.color = '#000';
+    topBackButton.style.cursor = 'pointer';
+    topBackButton.style.zIndex = '10'; // ensure it's above everything
+
+    topBackButton.addEventListener('click', () => {
+      document.body.removeChild(instructionsScreen);
+      if (!gameStarted) {
+        showMainMenu();
+      } else {
+        gamePaused = false;
+      }
+    });
+
+    instructionsScreen.appendChild(topBackButton);
+
+  const content = document.createElement('div');
+  content.className = 'screen-content instructions-content';
+
+  // Title
+  const title = document.createElement('h2');
+  title.textContent = 'How to Play';
+  title.className = 'instructions-title';
+
+  content.appendChild(title);
+
+  // Instructions container
+  const instructionsContainer = document.createElement('div');
+  instructionsContainer.className = 'instructions-container';
+
+  const instructions = [
+    { icon: '🚀', title: 'Mission', text: 'Destroy the asteroids debris, Beware of radiations from alien UFOs!' },
+    { icon: '🎯', title: 'Aiming', text: 'Move your mouse to aim. The green dotted line shows your missile trajectory.' },
+    { icon: '🔫', title: 'Shooting', text: 'Press SPACEBAR or use mouse click to fire missiles at asteroids.' },
+    { icon: '💪', title: 'PowerUps', text: 'Collect Health and Radiation Shield powerups that appear randomly.' },
+    { icon: '🏆', title: 'Scoring', text: 'Earn points by destroying asteroids. Destroying UFOs earns bonus points.' }
+  ];
+
+  instructions.forEach(instruction => {
+    const item = document.createElement('div');
+    item.className = 'instruction-item';
+
+    const iconSpan = document.createElement('span');
+    iconSpan.textContent = instruction.icon;
+    iconSpan.className = 'instruction-icon';
+
+    const textContainer = document.createElement('div');
+
+    const itemTitle = document.createElement('h3');
+    itemTitle.textContent = instruction.title;
+    itemTitle.className = 'instruction-item-title';
+
+    const itemText = document.createElement('p');
+    itemText.textContent = instruction.text;
+    itemText.className = 'instruction-item-text';
+
+    textContainer.append(itemTitle, itemText);
+    item.append(iconSpan, textContainer);
+    instructionsContainer.appendChild(item);
+  });
+
+  content.appendChild(instructionsContainer);
+
+  // Back button
+  const backButton = document.createElement('button');
+  backButton.className = 'menu-button';
+  backButton.innerHTML = '<span class="button-text">Back to Menu</span>';
+
+  backButton.addEventListener('click', () => {
+    document.body.removeChild(instructionsScreen);
+    showMainMenu();
+  });
+
+  content.appendChild(backButton);
+  instructionsScreen.appendChild(content);
+  document.body.appendChild(instructionsScreen);
+}
+
+
+
+function startGame(difficulty) {
+  gameStarted = true;
+  gamePaused = false;
+  
+  // Reset shuttle position
+  if (shuttle) {
+    shuttle.position.set(0, 0, 0);
+    shuttle.rotation.set(0, 0, 0);
+  }
+  
+  // Reset score
+  score = 0;
+  updateScoreDisplay();
+  
+  // Show countdown
+  showCountdown();
+}
+
+// === COUNTDOWN ===
+function showCountdown() {
+  gamePaused = true;
+  
+  const countdownOverlay = document.createElement('div');
+  countdownOverlay.style.position = 'fixed';
+  countdownOverlay.style.top = '0';
+  countdownOverlay.style.left = '0';
+  countdownOverlay.style.width = '100%';
+  countdownOverlay.style.height = '100%';
+  countdownOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+  countdownOverlay.style.display = 'flex';
+  countdownOverlay.style.justifyContent = 'center';
+  countdownOverlay.style.alignItems = 'center';
+  countdownOverlay.style.zIndex = '1000';
+  
+  const countdownNumber = document.createElement('div');
+  countdownNumber.style.fontSize = '120px';
+  countdownNumber.style.color = 'white';
+  countdownNumber.style.fontWeight = 'bold';
+  countdownNumber.style.textShadow = '0 0 20px rgba(79, 195, 247, 0.8)';
+  
+  countdownOverlay.appendChild(countdownNumber);
+  document.body.appendChild(countdownOverlay);
+  
+  let count = 3;
+  
+  const updateCount = () => {
+    if (count > 0) {
+      countdownNumber.textContent = count;
+      count--;
+      setTimeout(updateCount, 1000);
+    } else {
+      countdownNumber.textContent = 'GO!';
+      countdownNumber.style.color = '#4caf50';
+      
+      setTimeout(() => {
+        document.body.removeChild(countdownOverlay);
+        gamePaused = false;
+      }, 1000);
+    }
+  };
+  
+  updateCount();
+}
+
+// === PAUSE MENU ===
+function showPauseMenu() {
+  gamePaused = true;
+
+  // Pause all looping sounds
+  if (heartBeatSound.isPlaying) heartBeatSound.stop();
+  
+  const pauseScreen = document.createElement('div');
+  pauseScreen.className = 'game-screen';
+  pauseScreen.id = 'pause-screen';
+  
+  const content = document.createElement('div');
+  content.className = 'screen-content';
+  
+  // Title
+  const title = document.createElement('h2');
+  title.textContent = 'Game Paused';
+  title.style.marginBottom = '30px';
+  title.style.textAlign = 'center';
+  
+  content.appendChild(title);
+  
+  // Button container
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.display = 'flex';
+  buttonContainer.style.flexDirection = 'column';
+  buttonContainer.style.gap = '15px';
+  
+  // Resume button
+  const resumeButton = document.createElement('button');
+  resumeButton.className = 'difficulty-btn';
+  resumeButton.innerHTML = '<span class="difficulty-name">Resume Game</span>';
+  
+  resumeButton.addEventListener('click', () => {
+    document.body.removeChild(pauseScreen);
+    gamePaused = false;
+    const pauseButton = document.querySelector('.pause-btn');
+    pauseButton.classList.toggle('paused', gamePaused);
+  });
+  
+  // Restart button
+  const restartButton = document.createElement('button');
+  restartButton.className = 'difficulty-btn';
+  restartButton.innerHTML = '<span class="difficulty-name">Restart Game</span>';
+  
+  restartButton.addEventListener('click', () => {
+    document.body.removeChild(pauseScreen);
+    resetGame();
+    startGame(currentDifficulty);
+  });
+  
+  // Main menu button
+  const menuButton = document.createElement('button');
+  menuButton.className = 'difficulty-btn';
+  menuButton.innerHTML = '<span class="difficulty-name">Main Menu</span>';
+  
+  menuButton.addEventListener('click', () => {
+    document.body.removeChild(pauseScreen);
+    resetGame();
+    showMainMenu();
+  });
+  
+  buttonContainer.appendChild(resumeButton);
+  buttonContainer.appendChild(restartButton);
+  buttonContainer.appendChild(menuButton);
+  
+  content.appendChild(buttonContainer);
+  pauseScreen.appendChild(content);
+  document.body.appendChild(pauseScreen);
+}
+
+// === CSS STYLES ===
+function addGameStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .game-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .screen-content {
+      background-color: rgba(20, 20, 30, 0.9);
+      padding: 30px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 600px;
+      box-shadow: 0 0 30px rgba(0, 150, 255, 0.3);
+      border: 2px solid #4fc3f7;
+      color: white;
+    }
+    
+    .difficulty-btn {
+      background-color: rgba(0, 0, 0, 0.5);
+      border: 2px solid #4fc3f7;
+      border-radius: 5px;
+      color: white;
+      padding: 15px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    
+    .difficulty-btn:hover {
+      background-color: rgba(79, 195, 247, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    .difficulty-btn:active {
+      transform: translateY(1px);
+    }
+  
+    .difficulty-name {
+      font-weight: bold;
+      flex: 1;
+    }
+    
+    .difficulty-desc {
+      color: #aaa;
+      font-size: 14px;
+      margin-left: 10px;
+    }
+    
+    .back-btn {
+      margin-top: 20px;
+      background-color: rgba(50, 50, 50, 0.5);
+    }
+    
+    .back-btn:hover {
+      background-color: rgba(80, 80, 80, 0.5);
+    }
+  `;
+  
+  document.head.appendChild(style);
+}
+
+// === EVENT LISTENERS ===
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ') {
+    if (!gamePaused) {
+      shootMissile();
+    }
+  } else if (e.key === 'Escape') {
+    if (gameStarted && !gamePaused) {
+      showPauseMenu();
+    }
+  }
+});
