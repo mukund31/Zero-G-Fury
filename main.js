@@ -2300,7 +2300,7 @@ audioLoader.load('assets/Sounds/healthDamageSound.mp3', function(buffer) {
 // Load Heart Beat sound
 audioLoader.load('assets/Sounds/heartbeatSound.mp3', function(buffer) {
   heartBeatSound.setBuffer(buffer);
-  heartBeatSound.setVolume(0.3);
+  heartBeatSound.setVolume(0.6);
 });
 
 
@@ -2765,7 +2765,7 @@ function updateHeartbeatSound() {
     // Lower health = louder and faster heartbeat
     if (heartBeatSound.isPlaying) {
       // Volume increases as health decreases (0.3 to 0.8)
-      const volume = 0.3 + ((30 - healthPercentage) / 30) * 0.5;
+      const volume = 0.5 + ((30 - healthPercentage) / 30) * 0.5;
       heartBeatSound.volume = volume;
       
       // Playback rate increases as health decreases (0.8 to 1.5)
